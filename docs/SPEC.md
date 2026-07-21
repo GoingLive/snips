@@ -746,15 +746,15 @@ errors are shown inline with line and column.
 | Option | Default | Effect |
 |---|---|---|
 | Show in result field | **always on** | The resolved result is always rendered in the picker's result pane, selectable and copyable by hand |
-| Copy to clipboard | **on** | Plain / rich radio. This is the primary mechanism. |
-| Paste into active app | off `[?]` | §6 pipeline — sends `Ctrl+V` to the previously focused window |
+| Copy to clipboard | **on** | Plain / rich radio. This is the guaranteed mechanism — works with every application, always. |
+| Paste into active app | **off** | §6 pipeline — sends `Ctrl+V` to the previously focused window |
 
-Defaults are configurable and are remembered per session.
-
-`[?]` **Open question Q7 (§15):** whether auto-paste ships in v1 at all. Clipboard is
-now the default and the guaranteed path; auto-paste is a convenience layer on top of
-it that can be switched on. It is *not* the same thing as integrating with individual
-applications — see Q7.
+Both checkboxes are visible in the picker on every use (§5.4), so the choice is the
+user's each time, not a build-time decision — Roland confirmed this reading of Q7
+(§15.1). The Settings view lets the user change which state each checkbox starts in,
+but never removes either option. Clipboard defaults on because it never fails silently;
+auto-paste defaults off because §6's focus-restoration dance can be flaky in a handful
+of applications, and a first-run surprise is worse than an extra click.
 
 ### 9.2 Clipboard formats published
 
@@ -985,8 +985,6 @@ optional `CF_RTF` output if the target matrix demands it.
 | Q4 | Confirm MIT licence and the honour-system donation model (§11) | Recommended as specified |
 | Q5 | Should Snips ship with a starter set of example snippets? | Yes — 8–10 examples demonstrating variables teach the syntax far better than documentation |
 | Q6 | Folders/tags in v1, or flat list plus search? | Flat + tags. With good fuzzy search, folders are mostly redundant, and they add real UI complexity |
-| Q7 | Does **auto-paste** ship in v1? (§9.1) | Keep it, default **off**. It is ~100 lines on top of the clipboard path — not per-app integration — and it is the difference between "a snippet box" and "a tool". Clipboard remains the guaranteed path. |
-| Q8 | Are you registering as an **individual** or a **company**? (§16) | Affects Azure Artifact Signing eligibility only; the Store path works either way and is free |
 
 ### 15.1 Resolved in this revision
 
@@ -995,6 +993,13 @@ optional `CF_RTF` output if the target matrix demands it.
 - **Editor** → WebView2 `contenteditable`, WPF shell retained (§3, §5.7)
 - **Primary output** → clipboard, with the result always shown in-window (§9.1)
 - **No-warning installs** → Microsoft Store MSIX, free, no certificate (§16)
+- **Q7 Auto-paste** → ships in v1, **not** a build-time choice — both "Paste into
+  active app" and "Copy to clipboard" are checkboxes visible on every use (§5.4,
+  §9.1). Clipboard defaults checked, paste defaults unchecked; Settings only changes
+  the starting state, never removes either option.
+- **Q8 Registration entity** → resolved: a Swiss company. This closes the Azure
+  Artifact Signing route entirely for now, regardless of individual vs. organisation
+  — see the rewritten §16.3.
 ```
 
 ---
@@ -1018,22 +1023,37 @@ Two different dialogs get conflated:
 
 | Route | Cost | SmartScreen | Notes |
 |---|---|---|---|
-| **Microsoft Store (MSIX)** | **Free** | **None, from day one** | Microsoft re-signs the package. Developer account fees were removed — individual accounts became free in 2025, company accounts in May 2026. Also brings automatic updates and, if ever wanted, in-app purchase. |
-| Azure Artifact Signing (formerly Trusted Signing) | $9.99/month | Clears quickly | Microsoft's own signing service; no hardware token. **Eligibility is the catch — see §16.3.** |
-| Traditional OV certificate | ~$200–400/year | Warning persists until reputation accrues | Since 2023 the private key must live on a hardware token or cloud HSM. |
-| Traditional EV certificate | ~$400–700/year | Immediate | Requires a registered legal business entity; not available to individuals. |
-| SignPath.io free OSS tier | Free | Clears over time | Free certificates for qualifying open-source projects. |
-| Unsigned portable exe | Free | **Warning every download** | Current draft's plan. |
+| **Microsoft Store (MSIX)** | **Free** | **None, from day one** | Microsoft re-signs the package. Developer account fees were removed — individual accounts became free in 2025, company accounts in May 2026. Switzerland is on the Store's supported-country list — confirmed directly against Microsoft's current publisher list. Also brings automatic updates and, if ever wanted, in-app purchase. |
+| Azure Artifact Signing (formerly Trusted Signing) | $9.99/month | Clears quickly | **Not available to you at all right now — see §16.3.** |
+| Traditional OV certificate | ~$200–400/year | Warning persists until reputation accrues | Since 2023 the private key must live on a hardware token or cloud HSM. Country-agnostic — Switzerland is fine. |
+| Traditional EV certificate | ~$400–700/year | Immediate | Requires a registered legal business entity — you have one, so you qualify. Country-agnostic. |
+| SignPath.io free OSS tier | Free | Clears over time | Free certificates for qualifying open-source projects; worth applying for regardless of the above. |
+| Unsigned portable exe | Free | **Warning every download** | Fallback if none of the above is pursued. |
 
-### 16.3 Eligibility warning on Azure Artifact Signing
+### 16.3 Azure Artifact Signing — closed for Switzerland right now
 
-Public-trust certificates from Artifact Signing are available to **organisations** in
-the USA, Canada, the EU, and the UK — but to **individual developers only in the USA
-and Canada**. If you are registering as a private individual in Germany, **this route
-is not open to you** unless you sign up as a registered business. It also requires a
-paid Azure subscription; free, trial, and sponsored subscriptions are excluded.
+Confirmed directly against Microsoft's current eligibility list, not just the FAQ
+prose: Artifact Signing's public-trust certificates are available to organisations in
+the **USA, Canada, EU, and UK**, and individuals in the **USA and Canada**. I checked
+specifically because you're a Swiss company, and the answer is unambiguous —
+**Switzerland is not on that list, for individuals or organisations.** [Microsoft's
+own Q&A forum has a Swiss developer asking for it to be added](https://learn.microsoft.com/en-us/answers/questions/5812975/please-add-switzerland-(efta)-to-artifact-signing),
+with Microsoft's response that Switzerland is on the roadmap with **no committed
+date**. Having contacts or being domiciled in the US/Canada doesn't help — eligibility
+is about where the *signing entity* (your company) is legally registered, not who you
+know there. Registering a US or Canadian subsidiary purely to get a $9.99/month
+signing service would cost far more in accounting and legal overhead than it saves.
 
-This is exactly the kind of detail worth knowing before budgeting for it.
+**So: you do not need this, and currently cannot have it.** It only mattered as a way
+to remove the SmartScreen warning from the *portable* exe. Two things make that moot:
+
+1. The **Microsoft Store route (§16.4) is unaffected** — that eligibility list is
+   separate, Switzerland is on it, and it's free. This covers the "no warning
+   dialogs" requirement completely for anyone installing via the Store.
+2. If the portable exe specifically still needs to be warning-free (say, for
+   corporate machines that block the Store), the country-agnostic paid options —
+   a traditional **OV or EV certificate** — remain open to your Swiss company, at
+   the higher price shown above. This is a Phase 6 decision, not one to make now.
 
 ### 16.4 Recommendation — ship both artifacts
 
