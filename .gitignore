@@ -1,0 +1,20 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+publish/
+*.user
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.suo
+
+# Snips runtime data — never commit a user's library
+*.db
+*.db-wal
+*.db-shm
+snips.db.backup-*
+backups/
+portable.txt
