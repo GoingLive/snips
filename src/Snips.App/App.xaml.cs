@@ -10,6 +10,19 @@ namespace Snips.App;
 public partial class App : Application
 {
     private const uint VK_SPACE = 0x20;
+    private const uint VK_S = 0x53;
+    private const uint VK_BACKTICK = 0xC0; // VK_OEM_3
+
+    // Tried in order at startup until one registers. Ctrl+Alt+Space is claimed by enough
+    // other clipboard/snippet/IME tools that it needs backups rather than a single swap —
+    // a real per-user rebind UI is Phase 6 (SPEC.md §5.8); this is the stopgap until then.
+    private static readonly (HotKeyModifiers Modifiers, uint VirtualKey, string Label)[] HotkeyCandidates =
+    [
+        (HotKeyModifiers.Control | HotKeyModifiers.Alt, VK_SPACE, "Ctrl+Alt+Space"),
+        (HotKeyModifiers.Control | HotKeyModifiers.Alt, VK_S, "Ctrl+Alt+S"),
+        (HotKeyModifiers.Control | HotKeyModifiers.Shift, VK_SPACE, "Ctrl+Shift+Space"),
+        (HotKeyModifiers.Control | HotKeyModifiers.Alt, VK_BACKTICK, "Ctrl+Alt+`"),
+    ];
 
     private SnipsDatabase? _database;
     private ForegroundWindowTracker? _foregroundTracker;
@@ -29,22 +42,43 @@ public partial class App : Application
         _foregroundTracker = new ForegroundWindowTracker();
 
         _mainWindow = new MainWindow(_database, _foregroundTracker);
-
         _hotKeyManager = new HotKeyManager(_mainWindow);
-        var registered = _hotKeyManager.Register(
-            HotKeyModifiers.Control | HotKeyModifiers.Alt, VK_SPACE, _mainWindow.ShowAndFocus);
 
-        if (registered is null)
+        var boundLabel = RegisterFirstAvailableHotkey();
+
+        _mainWindow.TrayIcon.ToolTipText = boundLabel is null
+            ? "Snips (no hotkey bound — open from this tray icon)"
+            : $"Snips — {boundLabel} to open";
+
+        if (boundLabel is null)
         {
-            // Default combo already claimed by another app (SPEC.md §5.8). The tray icon and
-            // double-click still work; a Settings view to rebind it is Phase 6.
             MessageBox.Show(
-                "Ctrl+Alt+Space is already in use by another application. Snips is still " +
-                "available from the tray icon.",
+                "All of Snips' candidate hotkeys (Ctrl+Alt+Space, Ctrl+Alt+S, Ctrl+Shift+Space, " +
+                "Ctrl+Alt+`) are already claimed by other applications. Open Snips from the tray " +
+                "icon instead until a rebindable Settings view exists.",
+                "Snips", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else if (boundLabel != HotkeyCandidates[0].Label)
+        {
+            MessageBox.Show(
+                $"Ctrl+Alt+Space is already in use by another application, so Snips bound " +
+                $"{boundLabel} instead. Press {boundLabel} to open the picker.",
                 "Snips", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         // Intentionally not shown here — starts minimised to the tray (SPEC.md §10 default).
+    }
+
+    private string? RegisterFirstAvailableHotkey()
+    {
+        foreach (var candidate in HotkeyCandidates)
+        {
+            var id = _hotKeyManager!.Register(candidate.Modifiers, candidate.VirtualKey, _mainWindow!.ShowAndFocus);
+            if (id is not null)
+                return candidate.Label;
+        }
+
+        return null;
     }
 
     protected override void OnExit(ExitEventArgs e)
