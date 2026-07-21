@@ -62,7 +62,9 @@ variables, scripting — is secondary to that path staying fast.
 | Concern | Decision | Rationale |
 |---|---|---|
 | Runtime | .NET 10 (`net10.0-windows`) | Installed (SDK 10.0.302); current LTS-track |
-| UI framework | **WPF** | Only Windows stack with a mature `RichTextBox`/`FlowDocument` that edits formatted text *and* embedded images. `Topmost`, custom chrome, and per-pixel styling are trivial. WinUI 3's `RichEditBox` forces COM interop for images and drags in packaging identity; Avalonia's rich-text editing is immature and cross-platform is a non-goal. |
+| Application shell | **WPF** | Window, picker list, search, settings. Native, instant startup, trivial `Topmost` and custom chrome. The fast path never touches a browser engine. |
+| Snippet body format | **HTML + inline CSS** | See §3.3. Universally understood, diffable, future-proof, and it *is* the clipboard's rich format on Windows. |
+| Body editor + preview | **WebView2** (`contenteditable`) | The only way to edit HTML without a lossy conversion layer. Runtime confirmed present on this machine (v150.0.4078.83) and ships with Windows 11. |
 | Database | SQLite via `Microsoft.Data.Sqlite` | Single file, zero-config, ships in-process. No ORM — hand-written SQL in a thin repository layer keeps the binary small and the queries obvious. |
 | Expression engine | `NCalc` (or `DynamicExpresso`) | Math/logic one-liners, ~200 KB |
 | Lua engine | `MoonSharp` | Pure managed, sandboxable, no native dependency |
@@ -93,7 +95,7 @@ snips/
 │  ├─ Snips.Core/         Domain model, template engine, scripting, ID generation
 │  ├─ Snips.Data/         SQLite repositories, schema, migrations, backup
 │  └─ Snips.Interop/      Win32 P/Invoke — hotkeys, foreground window, SendInput,
-│                         clipboard, RTF/HTML serialisation
+│                         clipboard (CF_HTML wrapping)
 ├─ tests/
 │  └─ Snips.Tests/
 ├─ docs/
@@ -105,6 +107,48 @@ snips/
 
 `Snips.Core` and `Snips.Data` have no WPF dependency and are fully unit-testable.
 `Snips.Interop` is the only project containing `DllImport`.
+
+### 3.3 HTML rather than RTF — and what "deprecated" actually means
+
+RTF is genuinely old (1987) and Microsoft stopped publishing new versions of the
+specification in 2008. But it was never withdrawn, and it is still one of the two
+rich-text formats the Windows clipboard actually carries — Word and Outlook both
+publish and consume it today. So "no longer supported" is not quite right: RTF is
+*frozen*, not dead.
+
+The right conclusion is still to build on HTML, for reasons that have little to do
+with RTF's age:
+
+| | HTML + CSS | RTF |
+|---|---|---|
+| Editing | `contenteditable` in WebView2 gives a real editor for free | Requires WPF `FlowDocument`, then a hand-written serialiser |
+| Images | `<img src="data:image/png;base64,…">` | `{\pict\pngblip}` hex blobs |
+| Clipboard | `CF_HTML` — accepted by Word, Outlook, browsers, Gmail, Slack, Teams, OneNote, Notion | `CF_RTF` — accepted by Word, Outlook, WordPad, LibreOffice |
+| Storage | Text. Diffable, greppable, hand-editable, Git-friendly | Opaque |
+| Variable substitution | Walk DOM text nodes | Parse a bespoke control-word grammar |
+| Future formats | Markdown, PDF, plain text all convert cleanly from HTML | Everything is a conversion |
+
+Decisively: the previous draft required a hand-written `FlowDocument` → RTF writer
+with embedded-image support, because WPF's own RTF writer silently drops images.
+That was the single largest risk in the project. **Choosing HTML deletes that work
+entirely** — the canonical stored form and the primary clipboard form become the
+same string, so there is no serialiser to get wrong.
+
+**Storage format:** HTML fragments with *inline* styles only (`<span style="…">`),
+no stylesheets, no scripts, no external references. Sanitised on save with a strict
+allow-list of tags and attributes, so a snippet pasted in from a web page cannot
+carry scripts, tracking pixels, or remote images into the database.
+
+**RTF is not abandoned, just demoted.** `CF_RTF` remains a Phase-6 nice-to-have,
+generated from the HTML by a converter if the paste-target matrix (§13.2) shows any
+target that needs it. Every target on that list accepts `CF_HTML`, so the
+expectation is that it will not be needed.
+
+**Cost of WebView2:** it is a runtime dependency rather than something bundled — but
+it ships in Windows 11 and is present on effectively all Windows 10 machines via
+Edge. It is confirmed installed here. The editor WebView2 instance is created
+lazily on first use and kept warm; the picker's fast path (§5.4) is pure WPF and
+never waits for it.
 
 ---
 
@@ -129,19 +173,24 @@ forever. Displayed to the user without padding.
 
 ### 4.2 Rich text storage
 
-WPF's `TextRange.Save(..., DataFormats.Rtf)` **does not reliably preserve embedded
-images**. Therefore:
+- **Canonical storage** is an **HTML fragment with inline CSS**, stored as TEXT
+  (§3.3). This is what the editor loads, what the database holds, and what goes onto
+  the clipboard as `CF_HTML` — one representation, no conversion step.
+- **`PlainText`** is a derived column, regenerated on every save from the HTML, used
+  for search and for the plain-text clipboard format.
+- **Sanitisation on save** enforces an allow-list: `p b i u s em strong span div br
+  ul ol li a img h1–h6 blockquote code pre table tr td th hr` and the attributes
+  `style href src alt width height`. `style` is filtered to a safe property set.
+  Everything else is stripped. No `<script>`, no `<link>`, no event handlers, no
+  remote URLs.
 
-- **Canonical storage** is `XamlPackage` (a WPF-native OPC container that embeds
-  images losslessly). Stored as a BLOB. This is what the editor loads and saves.
-- **`PlainText`** is a derived column, regenerated on every save, used for search
-  and for the plain-text clipboard format.
-- **RTF and HTML are generated on demand at paste time** by our own serialisers
-  (§9.3), not by WPF's. This is the single largest piece of custom work in the
-  project — see risk R1.
+**Images** are stored as `SnippetAsset` rows, de-duplicated by SHA-256 content hash,
+and referenced from the HTML by a custom scheme — `<img src="snips-asset:0000…123">`.
+They are inlined as `data:` URIs only at the moment of export or clipboard write.
 
-Images are additionally extracted into `SnippetAsset` rows, de-duplicated by content
-hash, so that export/import and future formats have a clean source.
+Keeping images out of the HTML body in the database matters: a 2 MB screenshot
+base64-encoded inline would make every search query drag the image through memory,
+and would bloat the JSON export beyond usefulness.
 
 ### 4.3 Schema
 
@@ -158,7 +207,7 @@ CREATE TABLE Snippet (
     Id            TEXT    PRIMARY KEY,          -- 19-char zero-padded snowflake
     Name          TEXT    NOT NULL,             -- unique, case-insensitive
     Description   TEXT    NOT NULL DEFAULT '',
-    BodyPackage   BLOB,                         -- XamlPackage; canonical
+    BodyHtml      TEXT    NOT NULL DEFAULT '',  -- canonical; sanitised HTML fragment
     PlainText     TEXT    NOT NULL DEFAULT '',  -- derived, for search + plain paste
     IsRichText    INTEGER NOT NULL DEFAULT 1,
     FolderId      TEXT    NULL REFERENCES Folder(Id) ON DELETE SET NULL,
@@ -343,10 +392,18 @@ comfortably allows filtering in memory on every keystroke.
 
 ### 5.7 Editor
 
+- The body editor is a **WebView2** hosting a `contenteditable` surface, with a WPF
+  toolbar above it driving it via `document.execCommand` / Selection APIs.
 - Rich text editing: bold, italic, underline, strikethrough, bullet and numbered
   lists, indent, text colour, highlight, hyperlink, font size, clear formatting.
+- **Edit HTML source** toggle — the canonical form is text, so power users can edit
+  it directly. Invalid or disallowed markup is reported rather than silently eaten.
 - Images: paste from clipboard, drag-and-drop, or **Insert → Image from file…**
-  (PNG/JPEG/GIF/BMP). Images larger than 2 MB or 2000 px prompt to downscale.
+  (PNG/JPEG/GIF/BMP/WebP). Images larger than 2 MB or 2000 px prompt to downscale.
+  On save, images are extracted to `SnippetAsset` and the `src` rewritten to
+  `snips-asset:<id>`.
+- Pasting *into* the editor from a web page runs the same sanitiser as save, so
+  scripts and remote references never enter the database.
 - **Insert Variable** button opens a searchable palette of all built-in and
   user-defined variables with descriptions and a live sample value.
 - Live validation: unknown or malformed `{{…}}` placeholders are underlined with a
@@ -569,18 +626,24 @@ Example: `{{clipboard|trim|title}}` · `{{input:Title|slug}}`
 
 ### 7.8 Substitution over rich text
 
-Placeholders may be split across formatting runs — a user might accidentally bold
-only half of `{{date}}`. Naïve string replacement over the markup would corrupt the
-document. The algorithm is therefore:
+Placeholders may be split across formatting elements — a user might accidentally bold
+only half of `{{date}}`, giving `<b>{{da</b>te}}`. Naïve string replacement over the
+raw HTML would corrupt the markup. Substitution therefore runs over the **parsed DOM,
+never over the HTML string**:
 
-1. Flatten the `FlowDocument` to a plain string, retaining an offset → `TextPointer` map
-2. Match `{{…}}` patterns against the flat string
-3. Resolve each match
-4. Replace via a `TextRange` between the mapped pointers, in reverse document order
-   so earlier offsets stay valid
+1. Parse `BodyHtml` with AngleSharp into a DOM
+2. Concatenate all text nodes in document order into a flat string, retaining an
+   offset → (node, index) map
+3. Match `{{…}}` patterns against the flat string
+4. Resolve each match
+5. Write the result into the text node containing the placeholder's **first**
+   character, and delete the placeholder's remaining characters from any subsequent
+   nodes — working in reverse document order so earlier offsets stay valid
+6. Serialise back to HTML
 
-The formatting of the placeholder's **first character** is applied to the substituted
-value.
+The formatting of the placeholder's first character is therefore what the substituted
+value inherits. Resolved values are HTML-escaped unless the variable is explicitly
+marked as returning markup.
 
 ---
 
@@ -682,32 +745,46 @@ errors are shown inline with line and column.
 
 | Option | Default | Effect |
 |---|---|---|
-| Preview in app | always on | Resolved result is always shown in the picker's preview pane |
-| Paste into active app | on | §6 pipeline |
-| Copy to clipboard — plain | off | `CF_UNICODETEXT` only |
-| Copy to clipboard — rich | off | `CF_UNICODETEXT` + `CF_RTF` + `CF_HTML` |
+| Show in result field | **always on** | The resolved result is always rendered in the picker's result pane, selectable and copyable by hand |
+| Copy to clipboard | **on** | Plain / rich radio. This is the primary mechanism. |
+| Paste into active app | off `[?]` | §6 pipeline — sends `Ctrl+V` to the previously focused window |
 
 Defaults are configurable and are remembered per session.
 
+`[?]` **Open question Q7 (§15):** whether auto-paste ships in v1 at all. Clipboard is
+now the default and the guaranteed path; auto-paste is a convenience layer on top of
+it that can be switched on. It is *not* the same thing as integrating with individual
+applications — see Q7.
+
 ### 9.2 Clipboard formats published
 
-| Format | Contents |
-|---|---|
-| `CF_UNICODETEXT` | `PlainText` projection — always included as a fallback |
-| `CF_RTF` | Generated by our RTF writer, images as `\pngblip` |
-| `CF_HTML` | CF_HTML fragment, images as `data:` URIs |
-| `XamlPackage` | For paste back into Snips itself, lossless |
+| Format | Contents | v1 |
+|---|---|---|
+| `CF_UNICODETEXT` | `PlainText` projection — **always** included as a fallback | Yes |
+| `CF_HTML` | The resolved canonical HTML, images inlined as `data:` URIs, wrapped in the CF_HTML header | Yes |
+| `CF_RTF` | Converted from HTML if the target matrix shows a need | Phase 6, likely unnecessary |
 
-### 9.3 RTF and HTML serialisation
+### 9.3 CF_HTML wrapping
 
-Because WPF's own RTF writer drops images (§4.2), `Snips.Interop` contains a
-`FlowDocumentToRtf` writer supporting: paragraphs, runs, bold/italic/underline/strike,
-font family and size, foreground and highlight colour, bullet and numbered lists,
-hyperlinks, and images as `{\pict\pngblip ...}` hex.
+`CF_HTML` is not raw HTML — it requires a byte-offset header that many
+implementations get wrong:
 
-**Fallback if this proves problematic:** publish `CF_HTML` as the primary rich format
-(broadly accepted by Word, Outlook, browsers, Slack, OneNote) and emit RTF without
-images. Decided by the paste-target test matrix in §13.2.
+```
+Version:0.9
+StartHTML:00000097
+EndHTML:00000null
+StartFragment:00000131
+EndFragment:00000null
+<html><body><!--StartFragment--> … <!--EndFragment--></body></html>
+```
+
+The offsets are **byte** counts into the UTF-8 encoding, not character counts — a
+snippet containing `Hüttmann`, an em-dash, or an emoji will paste as garbage if this
+is computed on `string.Length`. This is written once in `Snips.Interop`, with unit
+tests over multi-byte content specifically.
+
+Images are inlined as `data:` URIs at this point, resolved from `SnippetAsset`. This
+is the one place where the asset indirection is expanded.
 
 ---
 
@@ -764,11 +841,13 @@ A software licence tells other people what they may legally do with your code.
 
 ```
 MIT License
-Copyright (c) 2026 Roland Huettmann
+Copyright (c) 2026 Roland Hüttmann
 ```
 
-`[?]` Please confirm the exact spelling you want in the copyright line — in
-particular whether it should read *Hüttmann* with the umlaut.
+The `LICENSE` file is written as **UTF-8 without BOM**, which GitHub, Visual Studio,
+and every modern toolchain render correctly. Source files carrying the copyright
+header use the same encoding, and the repository sets `* text=auto working-tree-encoding=UTF-8`
+in `.gitattributes` so no tool downgrades it to a code page.
 
 The realistic risk that someone forks Snips and successfully sells it is very low, and
 the cost of a restrictive licence — losing corporate users, losing contributors,
@@ -825,9 +904,11 @@ version is never diminished. This is a Phase 4 decision, not a v1 one.
 
 | # | Risk | Impact | Mitigation |
 |---|---|---|---|
-| R1 | Custom `FlowDocument` → RTF writer with embedded images is the largest unknown | High | Build it early, behind a test matrix (§13.2). Documented HTML-first fallback (§9.3). |
-| R2 | Antivirus flags `SendInput` / hotkey behaviour as keylogger-like | High — blocks adoption | **No low-level keyboard hook in v1** (this is what actually triggers heuristics; it is why auto-expansion is deferred). Pursue code signing — SignPath offers free certificates to open-source projects. |
-| R3 | SmartScreen warning on an unsigned portable exe | Medium — scares off users | Document it in the README with a screenshot; reputation accrues with downloads; resolved properly by R2's signing. |
+| R1 | ~~Custom `FlowDocument` → RTF writer~~ | **Eliminated** | Removed by the HTML decision (§3.3). Canonical storage and clipboard format are now the same string. |
+| R1b | CF_HTML byte-offset header computed incorrectly for non-ASCII content | Medium — silent corruption | Single implementation in `Snips.Interop`, unit-tested against umlauts, em-dashes, and emoji (§9.3). |
+| R2 | Antivirus flags `SendInput` / hotkey behaviour as keylogger-like | High — blocks adoption | **No low-level keyboard hook in v1** (this is what actually triggers heuristics; it is why auto-expansion is deferred). Store distribution (§16) also carries Microsoft's signature. |
+| R3 | SmartScreen warning on the portable exe | Medium — scares off users | **Resolved for the mainstream path** by shipping through the Microsoft Store, where Microsoft re-signs the package (§16). The portable exe on GitHub remains unsigned and documented as such. |
+| R8 | WebView2 runtime missing on an old Windows 10 machine | Low | Detect at startup; if absent, the picker and clipboard output still work fully and the editor shows a one-click link to Microsoft's Evergreen bootstrapper. The Store package can declare it as a dependency. |
 | R4 | Focus restoration is unreliable in some applications | Medium | `AttachThreadInput` sequence, configurable delay, and a clear fallback message when paste fails. |
 | R5 | Clipboard restore is inherently lossy | Low | Best-effort by design, disableable, documented. |
 | R6 | Hotkey conflicts with other applications | Medium | Graceful `RegisterHotKey` failure, visible ⚠ marker, retry on focus. |
@@ -869,11 +950,13 @@ Solution structure, SQLite schema and migrations, snowflake IDs, snippet CRUD, p
 picker window, plain-text copy to clipboard. *Goal: storing and retrieving text works.*
 
 **Phase 2 — The fast path**
-Global hotkey, foreground tracking, focus restoration, `SendInput` paste, clipboard
-backup/restore, fuzzy search, tray icon. *Goal: the tool is genuinely usable daily.*
+Global hotkey, fuzzy search, tray icon, result field, clipboard output.
+*Goal: the tool is genuinely usable daily.* Auto-paste (foreground tracking, focus
+restoration, `SendInput`, clipboard backup/restore) is a self-contained addition here,
+subject to Q7.
 
 **Phase 3 — Rich text**
-`FlowDocument` editor, `XamlPackage` storage, image assets, RTF and HTML writers, the
+WebView2 `contenteditable` editor, HTML sanitiser, image assets, CF_HTML writer, the
 paste-target matrix. *Goal: formatting and images survive the round trip.*
 
 **Phase 4 — Variables**
@@ -885,10 +968,11 @@ form, `{{selection}}` and `{{cursor}}`.
 
 **Phase 6 — Polish and release**
 Per-snippet shortcuts, settings, export/import, backups, theming, the icon, update
-check, donation reminder, README, first GitHub release.
+check, donation reminder, README, MSIX packaging, first GitHub release **and Store
+submission** (§16).
 
 **Later** — abbreviation auto-expansion (R2 permitting), snippet folders and sync,
-Microsoft Store listing.
+optional `CF_RTF` output if the target matrix demands it.
 
 ---
 
@@ -898,8 +982,88 @@ Microsoft Store listing.
 |---|---|---|
 | Q1 | IDs: accept 18→19 digit growth, stored zero-padded to 19 chars? (§4.1) | Yes — fixed-width TEXT keeps sorting correct forever |
 | Q2 | Replace the two clipboard checkboxes with one checkbox + plain/rich radio? (§5.4) | Yes — a clipboard holds all formats at once, so they were never independent |
-| Q3 | Exact spelling for the copyright line — *Huettmann* or *Hüttmann*? (§11.2) | Your call; I won't guess |
 | Q4 | Confirm MIT licence and the honour-system donation model (§11) | Recommended as specified |
 | Q5 | Should Snips ship with a starter set of example snippets? | Yes — 8–10 examples demonstrating variables teach the syntax far better than documentation |
 | Q6 | Folders/tags in v1, or flat list plus search? | Flat + tags. With good fuzzy search, folders are mostly redundant, and they add real UI complexity |
+| Q7 | Does **auto-paste** ship in v1? (§9.1) | Keep it, default **off**. It is ~100 lines on top of the clipboard path — not per-app integration — and it is the difference between "a snippet box" and "a tool". Clipboard remains the guaranteed path. |
+| Q8 | Are you registering as an **individual** or a **company**? (§16) | Affects Azure Artifact Signing eligibility only; the Store path works either way and is free |
+
+### 15.1 Resolved in this revision
+
+- **Q3 Copyright** → `Roland Hüttmann`, UTF-8 without BOM (§11.2)
+- **Body format** → HTML + inline CSS, not RTF or XamlPackage (§3.3)
+- **Editor** → WebView2 `contenteditable`, WPF shell retained (§3, §5.7)
+- **Primary output** → clipboard, with the result always shown in-window (§9.1)
+- **No-warning installs** → Microsoft Store MSIX, free, no certificate (§16)
 ```
+
+---
+
+## 16. Distribution, signing, and the SmartScreen problem
+
+Requirement: *"I must register such tool with Microsoft, otherwise it is not good for
+anybody. It should run without warning dialogs."* Correct, and cheaper than expected.
+
+### 16.1 Where the warnings come from
+
+Two different dialogs get conflated:
+
+1. **SmartScreen** — *"Windows protected your PC · Unknown publisher"*. Triggered by
+   an executable with no established reputation. A code-signing certificate plus
+   download volume builds that reputation over time.
+2. **UAC elevation prompt** — only appears if the installer needs admin rights. Snips
+   is per-user and never needs it.
+
+### 16.2 The options, priced
+
+| Route | Cost | SmartScreen | Notes |
+|---|---|---|---|
+| **Microsoft Store (MSIX)** | **Free** | **None, from day one** | Microsoft re-signs the package. Developer account fees were removed — individual accounts became free in 2025, company accounts in May 2026. Also brings automatic updates and, if ever wanted, in-app purchase. |
+| Azure Artifact Signing (formerly Trusted Signing) | $9.99/month | Clears quickly | Microsoft's own signing service; no hardware token. **Eligibility is the catch — see §16.3.** |
+| Traditional OV certificate | ~$200–400/year | Warning persists until reputation accrues | Since 2023 the private key must live on a hardware token or cloud HSM. |
+| Traditional EV certificate | ~$400–700/year | Immediate | Requires a registered legal business entity; not available to individuals. |
+| SignPath.io free OSS tier | Free | Clears over time | Free certificates for qualifying open-source projects. |
+| Unsigned portable exe | Free | **Warning every download** | Current draft's plan. |
+
+### 16.3 Eligibility warning on Azure Artifact Signing
+
+Public-trust certificates from Artifact Signing are available to **organisations** in
+the USA, Canada, the EU, and the UK — but to **individual developers only in the USA
+and Canada**. If you are registering as a private individual in Germany, **this route
+is not open to you** unless you sign up as a registered business. It also requires a
+paid Azure subscription; free, trial, and sponsored subscriptions are excluded.
+
+This is exactly the kind of detail worth knowing before budgeting for it.
+
+### 16.4 Recommendation — ship both artifacts
+
+| Audience | Artifact | Signing |
+|---|---|---|
+| **Everyone** | Microsoft Store listing (MSIX) | Microsoft re-signs — **no warning, free, automatic updates** |
+| Power users, portable/USB use, corporate machines without Store access | Single-file portable `.exe` on GitHub Releases | Unsigned in v1; documented in the README |
+
+The Store listing satisfies the "no warning dialogs" requirement at **zero cost**,
+which is a better outcome than the $200–700/year the traditional certificate route
+would have implied. The portable exe stays, because you asked for it and because
+Store-restricted corporate environments are real.
+
+**Consequence for the build:** Phase 6 adds an MSIX packaging step
+(`Windows Application Packaging Project`, or `dotnet publish` plus `makeappx` — note
+`makeappx` is not currently on PATH here and comes with the Windows SDK). MSIX
+constraints to design for from the start, none of which conflict with the current
+spec:
+
+- No writing next to the executable → **portable mode is disabled in the Store build**;
+  the database lives in `%LOCALAPPDATA%\Snips\`.
+- Registry `Run` key for start-with-Windows is replaced by the MSIX
+  `windows.startupTask` extension.
+- Every release goes through Store certification (typically a few days for the first
+  submission, faster thereafter).
+- `RegisterHotKey`, `SendInput`, and clipboard access are all permitted for packaged
+  desktop apps — none of the core functionality is restricted.
+
+### 16.5 Sequencing
+
+Do not submit to the Store until Phase 6. Certification review on an incomplete app
+wastes the review cycle and the first impression. Develop and dogfood against the
+portable build; package for the Store once the feature set is settled.
