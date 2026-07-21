@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Snips.App/Snips.App.csproj" />
+    <Project Path="src/Snips.Core/Snips.Core.csproj" />
+    <Project Path="src/Snips.Data/Snips.Data.csproj" />
+    <Project Path="src/Snips.Interop/Snips.Interop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Snips.Tests/Snips.Tests.csproj" />
+  </Folder>
+</Solution>
