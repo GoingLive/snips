@@ -605,13 +605,23 @@ appear in the order they occur; **repeating the same label reuses one field**, s
 | Variable | Control |
 |---|---|
 | `{{input:Label}}` | single-line text box |
-| `{{input:Label\|default}}` | pre-filled text box |
+| `{{input:Label:default}}` | pre-filled text box |
 | `{{multiline:Label}}` | multi-line text box |
-| `{{choice:Label\|A,B,C}}` | drop-down |
+| `{{choice:Label:A,B,C}}` | drop-down |
 | `{{datepick:Label:yyyy-MM-dd}}` | date picker |
-| `{{check:Label\|yes,no}}` | check box with two output values |
+| `{{check:Label:yes,no}}` | check box with two output values |
 
 `Esc` in the form cancels the whole operation without pasting.
+
+**Grammar fix (implemented, not just proposed):** the draft above originally separated a
+control's own arguments with `|` (`{{input:Label|default}}`), which collides with §7.7's
+filter-chain syntax also using `|` — there would be no way to tell "prompt for Label with
+default `x`" from "prompt for Label, then pipe the typed value through filter `x`." Resolved
+by making the grammar uniform across every variable, built-in or interactive: **`:` always
+separates a variable's own positional arguments; `|` is reserved exclusively for the trailing
+filter chain**, e.g. `{{input:Name:Roland|upper}}` prompts for Name (defaulting to "Roland")
+and uppercases whatever is typed. This also means filters now compose with interactive
+variables, which the original draft didn't support at all.
 
 ### 7.7 Filters
 

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Net;
 using System.Windows;
 using System.Windows.Controls;
@@ -6,6 +7,7 @@ using System.Windows.Input;
 using Snips.Core.Domain;
 using Snips.Core.Repositories;
 using Snips.Core.Search;
+using Snips.Core.Templates;
 using Snips.Data;
 using Snips.Interop.Clipboard;
 using Snips.Interop.Foreground;
@@ -144,18 +146,46 @@ public partial class MainWindow : Window
 
         var copy = CopyCheckBox.IsChecked == true;
         var paste = PasteCheckBox.IsChecked == true;
+        var target = _foregroundTracker.LastExternalForegroundWindow;
+
+        // Fetched once, before anything below writes to the clipboard: this is both the
+        // {{clipboard}} variable's value and the backup to restore after a transient paste.
+        var originalClipboard = ClipboardTextGuard.TryGetCurrentText();
+
+        var context = new TemplateContext
+        {
+            Now = DateTimeOffset.Now,
+            Culture = CultureInfo.CurrentCulture,
+            SystemInfo = EnvironmentSystemInfoProvider.Instance,
+            SnippetName = snippet.Name,
+            SnippetId = snippet.Id,
+            SnippetDescription = snippet.Description,
+            UseCount = snippet.UseCount,
+            ClipboardText = originalClipboard,
+            ActiveWindowTitle = target is { } titleTarget ? ActiveWindowInfo.GetWindowTitle(titleTarget) : null,
+            ActiveAppName = target is { } appTarget ? ActiveWindowInfo.GetProcessName(appTarget) : null,
+            IdGenerator = _database.IdGenerator,
+            Counters = _database.Counters,
+            Prompt = new WpfInteractivePrompt(this),
+        };
+
+        var rendered = await TemplateEngine.RenderAsync(snippet.PlainText, context);
+        if (rendered.Cancelled)
+        {
+            StatusText.Text = "Cancelled.";
+            return;
+        }
 
         // Only back up the clipboard when we're writing to it purely as a transient step for
         // auto-paste. If "Copy to clipboard" is also checked, the snippet is meant to stay there
         // (SPEC.md §6.4), so there is nothing to restore.
-        string? clipboardBackup = paste && !copy ? ClipboardTextGuard.TryGetCurrentText() : null;
+        string? clipboardBackup = paste && !copy ? originalClipboard : null;
 
         if (copy || paste)
-            ClipboardTextGuard.SetText(snippet.PlainText);
+            ClipboardTextGuard.SetText(rendered.Text);
 
         if (paste)
         {
-            var target = _foregroundTracker.LastExternalForegroundWindow;
             if (target is null)
             {
                 StatusText.Text = "No previous window to paste into — copied to clipboard instead.";

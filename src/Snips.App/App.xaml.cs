@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using Snips.Core.Domain;
 using Snips.Core.Storage;
 using Snips.Data;
 using Snips.Interop.Foreground;
@@ -36,6 +37,7 @@ public partial class App : Application
 
         var dbPath = ResolveDatabasePath();
         _database = await SnipsDatabase.OpenAsync(dbPath);
+        await SeedExampleSnippetsIfEmptyAsync(_database);
 
         // Must exist before the window so WM_HOTKEY delivery (via SetWinEventHook,
         // WINEVENT_OUTOFCONTEXT) starts as soon as the Dispatcher message loop is pumping.
@@ -95,5 +97,45 @@ public partial class App : Application
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var portableMarkerExists = File.Exists(Path.Combine(exeDirectory, DatabasePathResolver.PortableMarkerFileName));
         return DatabasePathResolver.Resolve(exeDirectory, localAppData, portableMarkerExists);
+    }
+
+    /// <summary>
+    /// First-run only (empty library): a handful of examples that actually exercise the
+    /// variable engine, so opening the picker for the first time shows something working
+    /// rather than an empty list. SPEC.md §15 Q5 calls for 8–10 eventually; this is a subset.
+    /// </summary>
+    private static async Task SeedExampleSnippetsIfEmptyAsync(SnipsDatabase database)
+    {
+        if ((await database.Snippets.ListAsync()).Count > 0)
+            return;
+
+        var examples = new (string Name, string Description, string Body)[]
+        {
+            ("Meeting follow-up", "Sent after a client call",
+                "Dear {{input:Name}},\n\nThank you for your time today, {{date}}. I'll follow up " +
+                "with next steps by {{date:+3d:dd.MM.yyyy}}.\n\nBest regards,\n{{user}}"),
+            ("Email signature", "Quick plain-text signature",
+                "{{user}}\n{{useremail}}\n{{date}}"),
+            ("Bug report template", "Starting point for a bug report",
+                "Environment: {{os}} ({{osversion}})\nReported by: {{user}} on {{date}}\n\n" +
+                "Steps to reproduce:\n1. \n2. \n\nExpected:\nActual:"),
+            ("Quick timestamp", "Paste the current date and time", "{{datetime}}"),
+        };
+
+        foreach (var (name, description, body) in examples)
+        {
+            var now = DateTime.UtcNow;
+            await database.Snippets.CreateAsync(new Snippet
+            {
+                Id = "unused",
+                Name = name,
+                Description = description,
+                BodyHtml = $"<p>{body.Replace("\n", "<br/>")}</p>",
+                PlainText = body,
+                IsRichText = false,
+                CreatedUtc = now,
+                ModifiedUtc = now,
+            });
+        }
     }
 }

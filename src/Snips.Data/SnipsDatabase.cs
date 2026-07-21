@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Snips.Core.Id;
 using Snips.Core.Repositories;
+using Snips.Core.Templates;
 using Snips.Data.Migrations;
 using Snips.Data.Repositories;
 
@@ -19,6 +20,7 @@ public sealed class SnipsDatabase : IAsyncDisposable
 
     public ISnippetRepository Snippets { get; }
     public ISettingsStore Settings { get; }
+    public ICounterStore Counters { get; }
     public SnowflakeIdGenerator IdGenerator { get; }
 
     private SnipsDatabase(SqliteConnection connection, SnowflakeIdGenerator idGenerator)
@@ -27,6 +29,7 @@ public sealed class SnipsDatabase : IAsyncDisposable
         IdGenerator = idGenerator;
         Settings = new SqliteSettingsStore(connection);
         Snippets = new SqliteSnippetRepository(connection, idGenerator);
+        Counters = new SqliteCounterStore(connection);
     }
 
     public static async Task<SnipsDatabase> OpenAsync(string path, CancellationToken ct = default)
