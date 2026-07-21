@@ -1,14 +1,79 @@
-﻿<Window x:Class="Snips.App.MainWindow"
+<Window x:Class="Snips.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Snips.App"
-        mc:Ignorable="d"
-        Title="Snips" Height="560" Width="420" Background="#FFFBEA">
+        xmlns:tb="http://www.hardcodet.net/taskbar"
+        Title="Snips" Height="560" Width="420" MinHeight="360" MinWidth="320"
+        Icon="Resources/tray.ico"
+        Background="#FFFBEA"
+        ShowInTaskbar="True"
+        Closing="MainWindow_Closing">
+    <Window.Resources>
+        <SolidColorBrush x:Key="Accent" Color="#E0A800"/>
+        <SolidColorBrush x:Key="Surface" Color="#FFF6D8"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#6B6355"/>
+    </Window.Resources>
+
     <Grid>
-        <TextBlock Text="Snips — scaffolding in progress. See docs/SPEC.md."
-                   Margin="16" TextWrapping="Wrap"
-                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
+        <tb:TaskbarIcon x:Name="TrayIcon"
+                         IconSource="Resources/tray.ico"
+                         ToolTipText="Snips"
+                         TrayLeftMouseDoubleClick="TrayIcon_TrayLeftMouseDoubleClick">
+            <tb:TaskbarIcon.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Show Snips" Click="ShowMenuItem_Click"/>
+                    <Separator/>
+                    <MenuItem Header="Quit" Click="QuitMenuItem_Click"/>
+                </ContextMenu>
+            </tb:TaskbarIcon.ContextMenu>
+        </tb:TaskbarIcon>
+
+        <Grid Margin="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="2*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="1*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Search -->
+            <TextBox x:Name="SearchBox" Grid.Row="0" Margin="0,0,0,8" Padding="6,4"
+                     FontSize="14"
+                     TextChanged="SearchBox_TextChanged"
+                     PreviewKeyDown="SearchBox_PreviewKeyDown"/>
+
+            <!-- Results -->
+            <ListBox x:Name="ResultsList" Grid.Row="1" Margin="0,0,0,8"
+                     Background="{StaticResource Surface}" BorderThickness="0"
+                     SelectionChanged="ResultsList_SelectionChanged"
+                     MouseDoubleClick="ResultsList_MouseDoubleClick"
+                     KeyDown="ResultsList_KeyDown">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="6,4">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding Description}" Foreground="{StaticResource TextSecondary}"
+                                       FontSize="11" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <TextBlock Grid.Row="2" Text="Preview" FontWeight="Bold" Margin="0,0,0,4"/>
+
+            <!-- Preview / result field -->
+            <TextBox x:Name="PreviewBox" Grid.Row="3" Margin="0,0,0,8"
+                     IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                     VerticalScrollBarVisibility="Auto"
+                     Background="White"/>
+
+            <!-- Output options -->
+            <StackPanel Grid.Row="4">
+                <CheckBox x:Name="CopyCheckBox" Content="Copy to clipboard" IsChecked="True" Margin="0,0,0,4"/>
+                <CheckBox x:Name="PasteCheckBox" Content="Paste into active app" IsChecked="False" Margin="0,0,0,4"/>
+                <TextBlock x:Name="StatusText" Foreground="{StaticResource TextSecondary}" FontSize="11"
+                           TextWrapping="Wrap" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

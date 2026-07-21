@@ -6,12 +6,22 @@
     <ProjectReference Include="..\Snips.Interop\Snips.Interop.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="H.NotifyIcon.Wpf" Version="2.4.1" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>Resources\tray.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Placeholder icon (accent-yellow circle) pending the real scissors icon in Phase 6, SPEC.md §5.2 -->
+    <Resource Include="Resources\tray.ico" />
+  </ItemGroup>
 
 </Project>

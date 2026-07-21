@@ -1,0 +1,42 @@
+<Window x:Class="Snips.App.SnippetEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Snippet" Height="440" Width="440"
+        Background="#FFFBEA" WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip">
+    <!--
+        Plain-text editor only. The rich-text WebView2 editor from SPEC.md §5.7 is Phase 3;
+        this exists so Phase 2's picker has a real way to create and edit snippets meanwhile.
+    -->
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Name" FontWeight="Bold" Margin="0,0,0,4"/>
+        <TextBox Grid.Row="1" x:Name="NameBox" Margin="0,0,0,12"/>
+
+        <TextBlock Grid.Row="2" Text="Description" FontWeight="Bold" Margin="0,0,0,4"/>
+        <TextBox Grid.Row="3" x:Name="DescriptionBox" Margin="0,0,0,12"/>
+
+        <TextBlock Grid.Row="4" Text="Body (plain text)" FontWeight="Bold" Margin="0,0,0,4"/>
+        <TextBox Grid.Row="5" x:Name="BodyBox" Margin="0,0,0,12"
+                 AcceptsReturn="True" TextWrapping="Wrap"
+                 VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+
+        <TextBlock Grid.Row="6" x:Name="ErrorText" Foreground="#B00020" Margin="0,0,0,8"
+                   TextWrapping="Wrap" Visibility="Collapsed"/>
+
+        <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="CancelButton" Content="Cancel" Width="80" Margin="0,0,8,0" Click="CancelButton_Click"/>
+            <Button x:Name="SaveButton" Content="Save" Width="80" IsDefault="True" Click="SaveButton_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
