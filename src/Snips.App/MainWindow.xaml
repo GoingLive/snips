@@ -6,7 +6,8 @@
         Icon="Resources/tray.ico"
         Background="#FFFBEA"
         ShowInTaskbar="True"
-        Closing="MainWindow_Closing">
+        Closing="MainWindow_Closing"
+        PreviewKeyDown="MainWindow_PreviewKeyDown">
     <Window.Resources>
         <SolidColorBrush x:Key="Accent" Color="#E0A800"/>
         <SolidColorBrush x:Key="Surface" Color="#FFF6D8"/>

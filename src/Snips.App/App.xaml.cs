@@ -49,8 +49,8 @@ public partial class App : Application
         var boundLabel = RegisterFirstAvailableHotkey();
 
         _mainWindow.TrayIcon.ToolTipText = boundLabel is null
-            ? "Snips (no hotkey bound — open from this tray icon)"
-            : $"Snips — {boundLabel} to open";
+            ? $"Snips, {BuildIdentifier.Value} (no hotkey bound — open from this tray icon)"
+            : $"Snips, {BuildIdentifier.Value} — {boundLabel} to open";
 
         if (boundLabel is null)
         {

@@ -27,6 +27,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         _database = database;
         _foregroundTracker = foregroundTracker;
+        Title = $"Snips — {BuildIdentifier.Value}";
         Loaded += async (_, _) => await RefreshListAsync();
     }
 
@@ -79,6 +80,9 @@ public partial class MainWindow : Window
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilter();
 
+    /// <summary>Up/Down only needs special handling here: they have no meaning in a single-line
+    /// TextBox, so while the search box has focus they're redirected to move the list selection.
+    /// When the list itself has focus it already handles Up/Down natively.</summary>
     private void SearchBox_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         switch (e.Key)
@@ -91,6 +95,20 @@ public partial class MainWindow : Window
                 MoveSelection(-1);
                 e.Handled = true;
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Window-level (tunnels from the root before any child control sees the key) so these work
+    /// no matter which control currently has focus — e.g. after clicking a row to select it, focus
+    /// moves to the list, and a handler wired only on the search box would never see Enter again.
+    /// Delete is deliberately NOT handled here: it needs to keep editing text when the search box
+    /// has focus, so it stays scoped to ResultsList_KeyDown instead.
+    /// </summary>
+    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
             case Key.Enter:
                 _ = ApplySelectedAsync(keepOpen: Keyboard.Modifiers.HasFlag(ModifierKeys.Control));
                 e.Handled = true;
