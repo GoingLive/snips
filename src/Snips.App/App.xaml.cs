@@ -68,7 +68,45 @@ public partial class App : Application
                 "Snips", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
+        await RegisterPerSnippetHotkeysAsync();
+
         // Intentionally not shown here — starts minimised to the tray (SPEC.md §10 default).
+    }
+
+    /// <summary>
+    /// SPEC.md §5.8: each snippet may additionally have its own global hotkey that applies it
+    /// directly, without opening the picker. Failures here (combo claimed by something else)
+    /// are reported once as a batch rather than crashing startup — the app remains fully usable
+    /// via the picker either way. A per-shortcut "⚠ inactive, retry on focus" indicator in the
+    /// list (as SPEC.md §5.8 describes) is not built yet; this only surfaces failures at startup.
+    /// </summary>
+    private async Task RegisterPerSnippetHotkeysAsync()
+    {
+        var shortcuts = await _database!.Shortcuts.ListAllAsync();
+        var failedSnippetNames = new List<string>();
+
+        foreach (var shortcut in shortcuts)
+        {
+            var snippetId = shortcut.SnippetId;
+            var id = _hotKeyManager!.Register(
+                (HotKeyModifiers)shortcut.Modifiers, (uint)shortcut.VirtualKey,
+                () => _mainWindow!.ApplySnippetByHotkey(snippetId));
+
+            if (id is null)
+            {
+                var snippet = await _database.Snippets.GetByIdAsync(snippetId);
+                failedSnippetNames.Add(snippet?.Name ?? snippetId);
+            }
+        }
+
+        if (failedSnippetNames.Count > 0)
+        {
+            MessageBox.Show(
+                "These snippets have a shortcut assigned, but the combination is already in " +
+                $"use by another application: {string.Join(", ", failedSnippetNames)}. Define a " +
+                "different shortcut for them from the picker's right-click menu.",
+                "Snips", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 
     private string? RegisterFirstAvailableHotkey()

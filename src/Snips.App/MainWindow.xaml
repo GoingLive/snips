@@ -48,14 +48,34 @@
                      Background="{StaticResource Surface}" BorderThickness="0"
                      SelectionChanged="ResultsList_SelectionChanged"
                      MouseDoubleClick="ResultsList_MouseDoubleClick"
-                     KeyDown="ResultsList_KeyDown">
+                     KeyDown="ResultsList_KeyDown"
+                     PreviewMouseRightButtonDown="ResultsList_PreviewMouseRightButtonDown">
+                <ListBox.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="New" Click="NewMenuItem_Click"/>
+                        <MenuItem Header="Edit" Click="EditMenuItem_Click"/>
+                        <MenuItem Header="Duplicate" Click="DuplicateMenuItem_Click"/>
+                        <MenuItem Header="Delete" Click="DeleteMenuItem_Click"/>
+                        <Separator/>
+                        <MenuItem Header="Define a shortcut…" Click="DefineShortcutMenuItem_Click"/>
+                    </ContextMenu>
+                </ListBox.ContextMenu>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Margin="6,4">
-                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                            <TextBlock Text="{Binding Description}" Foreground="{StaticResource TextSecondary}"
-                                       FontSize="11" TextTrimming="CharacterEllipsis"/>
-                        </StackPanel>
+                        <Grid Margin="6,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="{Binding Snippet.Name}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding Snippet.Description}" Foreground="{StaticResource TextSecondary}"
+                                           FontSize="11" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding ShortcutLabel}"
+                                       Foreground="{StaticResource TextSecondary}" FontSize="11"
+                                       VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>

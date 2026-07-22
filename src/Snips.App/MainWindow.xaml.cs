@@ -15,11 +15,15 @@ using Snips.Interop.Paste;
 
 namespace Snips.App;
 
+/// <summary>One row in the picker list: a snippet plus its shortcut's display label, if any.</summary>
+internal sealed record PickerRow(Snippet Snippet, string? ShortcutLabel);
+
 public partial class MainWindow : Window
 {
     private readonly SnipsDatabase _database;
     private readonly ForegroundWindowTracker _foregroundTracker;
     private List<Snippet> _allSnippets = [];
+    private Dictionary<string, string> _shortcutLabelsBySnippetId = [];
     private bool _isExiting;
 
     public MainWindow(SnipsDatabase database, ForegroundWindowTracker foregroundTracker)
@@ -53,18 +57,34 @@ public partial class MainWindow : Window
         Application.Current.Shutdown();
     }
 
+    /// <summary>
+    /// Triggered directly by a per-snippet hotkey (SPEC.md §5.8) — no picker window involved at
+    /// all. Always copies and pastes: there's no open UI to read checkbox state from, and the
+    /// whole point of a per-snippet shortcut is to act immediately.
+    /// </summary>
+    public async void ApplySnippetByHotkey(string snippetId)
+    {
+        var snippet = await _database.Snippets.GetByIdAsync(snippetId);
+        if (snippet is not null)
+            await ApplySnippetAsync(snippet, copy: true, paste: true, statusTarget: null);
+    }
+
     private async Task RefreshListAsync()
     {
         _allSnippets = (await _database.Snippets.ListAsync()).ToList();
+        _shortcutLabelsBySnippetId = (await _database.Shortcuts.ListAllAsync())
+            .ToDictionary(s => s.SnippetId, s => HotkeyFormatting.Format(s.Modifiers, s.VirtualKey));
         ApplyFilter();
     }
 
     private void ApplyFilter()
     {
-        var previouslySelectedId = (ResultsList.SelectedItem as Snippet)?.Id;
+        var previouslySelectedId = GetSelectedSnippet()?.Id;
 
         var matches = SnippetSearch.Search(_allSnippets, SearchBox.Text, DateTime.UtcNow)
-            .Select(m => m.Snippet)
+            .Select(m => new PickerRow(
+                m.Snippet,
+                _shortcutLabelsBySnippetId.GetValueOrDefault(m.Snippet.Id)))
             .ToList();
         ResultsList.ItemsSource = matches;
 
@@ -74,9 +94,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        var index = previouslySelectedId is null ? -1 : matches.FindIndex(s => s.Id == previouslySelectedId);
+        var index = previouslySelectedId is null ? -1 : matches.FindIndex(r => r.Snippet.Id == previouslySelectedId);
         ResultsList.SelectedIndex = index >= 0 ? index : 0;
     }
+
+    private Snippet? GetSelectedSnippet() => (ResultsList.SelectedItem as PickerRow)?.Snippet;
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilter();
 
@@ -129,6 +151,10 @@ public partial class MainWindow : Window
                 _ = DuplicateSelectedAsync();
                 e.Handled = true;
                 break;
+            case Key.K when Keyboard.Modifiers == ModifierKeys.Control:
+                _ = DefineShortcutForSelectedAsync();
+                e.Handled = true;
+                break;
         }
     }
 
@@ -143,7 +169,7 @@ public partial class MainWindow : Window
 
     private void ResultsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        PreviewBox.Text = (ResultsList.SelectedItem as Snippet)?.PlainText ?? string.Empty;
+        PreviewBox.Text = GetSelectedSnippet()?.PlainText ?? string.Empty;
     }
 
     private void ResultsList_KeyDown(object sender, KeyEventArgs e)
@@ -157,13 +183,34 @@ public partial class MainWindow : Window
 
     private void ResultsList_MouseDoubleClick(object sender, MouseButtonEventArgs e) => _ = EditSelectedAsync();
 
+    /// <summary>Right-click should act on the row under the cursor, not whatever was already selected.</summary>
+    private void ResultsList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (ItemsControl.ContainerFromElement(ResultsList, (DependencyObject)e.OriginalSource) is ListBoxItem item)
+            item.IsSelected = true;
+    }
+
     private async Task ApplySelectedAsync(bool keepOpen)
     {
-        if (ResultsList.SelectedItem is not Snippet snippet)
+        var snippet = GetSelectedSnippet();
+        if (snippet is null)
             return;
 
         var copy = CopyCheckBox.IsChecked == true;
         var paste = PasteCheckBox.IsChecked == true;
+
+        var applied = await ApplySnippetAsync(snippet, copy, paste, statusTarget: StatusText);
+        if (applied && !keepOpen)
+            Hide();
+    }
+
+    /// <summary>
+    /// The one place that renders a snippet and sends it to the clipboard/target app — used by
+    /// both the picker's Enter key and a direct per-snippet hotkey trigger. Returns false if the
+    /// user cancelled an interactive prompt, so the caller knows not to treat this as "applied".
+    /// </summary>
+    private async Task<bool> ApplySnippetAsync(Snippet snippet, bool copy, bool paste, TextBlock? statusTarget)
+    {
         var target = _foregroundTracker.LastExternalForegroundWindow;
 
         // Fetched once, before anything below writes to the clipboard: this is both the
@@ -190,8 +237,9 @@ public partial class MainWindow : Window
         var rendered = await TemplateEngine.RenderAsync(snippet.PlainText, context);
         if (rendered.Cancelled)
         {
-            StatusText.Text = "Cancelled.";
-            return;
+            if (statusTarget is not null)
+                statusTarget.Text = "Cancelled.";
+            return false;
         }
 
         // Only back up the clipboard when we're writing to it purely as a transient step for
@@ -206,19 +254,19 @@ public partial class MainWindow : Window
         {
             if (target is null)
             {
-                StatusText.Text = "No previous window to paste into — copied to clipboard instead.";
+                SetStatus(statusTarget, "No previous window to paste into — copied to clipboard instead.");
             }
             else
             {
                 var result = PasteSender.TrySendPaste(target.Value, delayMs: 60);
-                StatusText.Text = result switch
+                SetStatus(statusTarget, result switch
                 {
                     PasteResult.Sent => "Pasted.",
                     PasteResult.AccessDenied =>
                         "Target app is running as administrator — copied to clipboard, press Ctrl+V yourself.",
                     PasteResult.TargetGone => "Target window is gone — copied to clipboard instead.",
                     _ => string.Empty,
-                };
+                });
             }
 
             if (!copy)
@@ -226,13 +274,17 @@ public partial class MainWindow : Window
         }
         else if (copy)
         {
-            StatusText.Text = "Copied to clipboard.";
+            SetStatus(statusTarget, "Copied to clipboard.");
         }
 
         await _database.Snippets.RecordUseAsync(snippet.Id);
+        return true;
+    }
 
-        if (!keepOpen)
-            Hide();
+    private static void SetStatus(TextBlock? statusTarget, string message)
+    {
+        if (statusTarget is not null)
+            statusTarget.Text = message;
     }
 
     private async Task NewSnippetAsync()
@@ -266,7 +318,8 @@ public partial class MainWindow : Window
 
     private async Task EditSelectedAsync()
     {
-        if (ResultsList.SelectedItem is not Snippet snippet)
+        var snippet = GetSelectedSnippet();
+        if (snippet is null)
             return;
 
         var dialog = new SnippetEditWindow(snippet.Name, snippet.Description, snippet.PlainText) { Owner = this };
@@ -292,7 +345,8 @@ public partial class MainWindow : Window
 
     private async Task DuplicateSelectedAsync()
     {
-        if (ResultsList.SelectedItem is not Snippet snippet)
+        var snippet = GetSelectedSnippet();
+        if (snippet is null)
             return;
 
         var baseName = $"{snippet.Name} (copy)";
@@ -318,7 +372,8 @@ public partial class MainWindow : Window
 
     private async Task DeleteSelectedAsync()
     {
-        if (ResultsList.SelectedItem is not Snippet snippet)
+        var snippet = GetSelectedSnippet();
+        if (snippet is null)
             return;
 
         var confirmed = MessageBox.Show(
@@ -329,6 +384,24 @@ public partial class MainWindow : Window
         await _database.Snippets.DeleteAsync(snippet.Id);
         await RefreshListAsync();
     }
+
+    private async Task DefineShortcutForSelectedAsync()
+    {
+        var snippet = GetSelectedSnippet();
+        if (snippet is null)
+            return;
+
+        var existing = await _database.Shortcuts.GetBySnippetIdAsync(snippet.Id);
+        var dialog = new ShortcutCaptureWindow(snippet.Name, snippet.Id, _database.Shortcuts, existing) { Owner = this };
+        if (dialog.ShowDialog() == true)
+            await RefreshListAsync();
+    }
+
+    private void NewMenuItem_Click(object sender, RoutedEventArgs e) => _ = NewSnippetAsync();
+    private void EditMenuItem_Click(object sender, RoutedEventArgs e) => _ = EditSelectedAsync();
+    private void DuplicateMenuItem_Click(object sender, RoutedEventArgs e) => _ = DuplicateSelectedAsync();
+    private void DeleteMenuItem_Click(object sender, RoutedEventArgs e) => _ = DeleteSelectedAsync();
+    private void DefineShortcutMenuItem_Click(object sender, RoutedEventArgs e) => _ = DefineShortcutForSelectedAsync();
 
     private void MainWindow_Closing(object sender, CancelEventArgs e)
     {
