@@ -16,7 +16,6 @@
         <!-- Roland's contrast fix: orange is a highlight, not a reading surface — rows are
              white with deep-brown text, orange is reserved for the dividing lines. -->
         <SolidColorBrush x:Key="Surface" Color="White"/>
-        <SolidColorBrush x:Key="SurfaceSelected" Color="#FFE3B0"/>
         <SolidColorBrush x:Key="RowDivider" Color="#E67300"/>
         <SolidColorBrush x:Key="TextOnSurface" Color="#3E2A15"/>
         <SolidColorBrush x:Key="TextOnSurfaceMuted" Color="#8A6B4A"/>
@@ -101,16 +100,16 @@
                             <Setter Property="Padding" Value="0"/>
                             <Setter Property="Margin" Value="0,0,0,2"/>
                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                            <Style.Triggers>
-                                <Trigger Property="IsSelected" Value="True">
-                                    <Setter Property="Background" Value="{StaticResource SurfaceSelected}"/>
-                                </Trigger>
-                            </Style.Triggers>
                         </Style>
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
+                        <!-- Selection is driven by DataTemplate.Triggers against named elements here,
+                             not the ListBoxItem's own Background — WPF-UI's Fluent template doesn't
+                             visibly react to that property being set from an external style, so an
+                             ItemContainerStyle trigger was silently a no-op. This approach owns every
+                             pixel directly and can't be defeated by the base control template. -->
                         <DataTemplate>
-                            <Border Background="{StaticResource Surface}"
+                            <Border x:Name="RowBorder" Background="{StaticResource Surface}"
                                     BorderBrush="{StaticResource RowDivider}" BorderThickness="0,0,0,1">
                                 <Grid Margin="8,6">
                                     <Grid.ColumnDefinitions>
@@ -118,16 +117,24 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="{Binding Snippet.Name}" Style="{StaticResource BodyStrongTextBlockStyle}"
+                                        <TextBlock x:Name="NameText" Text="{Binding Snippet.Name}" Style="{StaticResource BodyStrongTextBlockStyle}"
                                                    Foreground="{StaticResource TextOnSurface}"/>
-                                        <TextBlock Text="{Binding Snippet.Description}" Style="{StaticResource CaptionTextBlockStyle}"
+                                        <TextBlock x:Name="DescriptionText" Text="{Binding Snippet.Description}" Style="{StaticResource CaptionTextBlockStyle}"
                                                    Foreground="{StaticResource TextOnSurfaceMuted}" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
-                                    <TextBlock Grid.Column="1" Text="{Binding ShortcutLabel}" Style="{StaticResource CaptionTextBlockStyle}"
+                                    <TextBlock x:Name="ShortcutText" Grid.Column="1" Text="{Binding ShortcutLabel}" Style="{StaticResource CaptionTextBlockStyle}"
                                                Foreground="{StaticResource TextOnSurfaceMuted}"
                                                VerticalAlignment="Center" Margin="8,0,0,0"/>
                                 </Grid>
                             </Border>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected}" Value="True">
+                                    <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource Accent}"/>
+                                    <Setter TargetName="NameText" Property="Foreground" Value="White"/>
+                                    <Setter TargetName="DescriptionText" Property="Foreground" Value="#FFF3D6"/>
+                                    <Setter TargetName="ShortcutText" Property="Foreground" Value="#FFF3D6"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>

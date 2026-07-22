@@ -47,6 +47,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         SearchBox.Text = string.Empty;
         StatusText.Text = string.Empty;
+        // Reset to defaults every time rather than leaving whatever was checked last: with no
+        // Settings screen yet to set a real default, an invisible "Paste" checkbox left checked
+        // from an earlier test is exactly how surprises like this happen.
+        CopyCheckBox.IsChecked = true;
+        PasteCheckBox.IsChecked = false;
         await RefreshListAsync();
         SearchBox.Focus();
     }
@@ -76,6 +81,44 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _shortcutLabelsBySnippetId = (await _database.Shortcuts.ListAllAsync())
             .ToDictionary(s => s.SnippetId, s => HotkeyFormatting.Format(s.Modifiers, s.VirtualKey));
         ApplyFilter();
+        RefreshTrayMenu();
+    }
+
+    /// <summary>
+    /// Quick access from the tray icon without opening the picker at all — answers Roland's
+    /// "insert what was generated for another app" question. Deliberately not Ctrl+Alt+1-9:
+    /// that would collide with the per-snippet shortcuts a user can already assign individually,
+    /// and "which 9" (list order? recency?) has no obviously-right answer. Lists the same
+    /// most-recently-used-first top 9 the picker itself defaults to.
+    /// </summary>
+    private void RefreshTrayMenu()
+    {
+        var menu = TrayIcon.ContextMenu;
+        if (menu is null)
+            return;
+
+        menu.Items.Clear();
+
+        var show = new MenuItem { Header = "Show Snips" };
+        show.Click += ShowMenuItem_Click;
+        menu.Items.Add(show);
+
+        var quickApply = _allSnippets.Take(9).ToList();
+        if (quickApply.Count > 0)
+        {
+            menu.Items.Add(new Separator());
+            foreach (var snippet in quickApply)
+            {
+                var item = new MenuItem { Header = snippet.Name };
+                item.Click += (_, _) => ApplySnippetByHotkey(snippet.Id);
+                menu.Items.Add(item);
+            }
+        }
+
+        menu.Items.Add(new Separator());
+        var quit = new MenuItem { Header = "Quit" };
+        quit.Click += QuitMenuItem_Click;
+        menu.Items.Add(quit);
     }
 
     private void ApplyFilter()
@@ -270,6 +313,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             if (target is null)
             {
+                // No paste was actually attempted — the clipboard write above is the real
+                // deliverable here, matching what this message promises. Restoring it a moment
+                // later (as if a transient paste had happened) would silently erase it again;
+                // that was a real bug — Roland kept losing the resolved text this way whenever
+                // "Paste" was checked with no valid target.
                 SetStatus(statusTarget, "No previous window to paste into — copied to clipboard instead.");
             }
             else
@@ -283,10 +331,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                     PasteResult.TargetGone => "Target window is gone — copied to clipboard instead.",
                     _ => string.Empty,
                 });
-            }
 
-            if (!copy)
-                _ = ClipboardTextGuard.RestoreAfterAsync(clipboardBackup, delayMs: 500);
+                if (!copy)
+                    _ = ClipboardTextGuard.RestoreAfterAsync(clipboardBackup, delayMs: 500);
+            }
         }
         else if (copy)
         {
