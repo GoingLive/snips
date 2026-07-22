@@ -1,10 +1,12 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
 using Snips.Core.Domain;
 using Snips.Core.Storage;
 using Snips.Data;
 using Snips.Interop.Foreground;
 using Snips.Interop.Hotkeys;
+using Wpf.Ui.Appearance;
 
 namespace Snips.App;
 
@@ -34,6 +36,13 @@ public partial class App : Application
     {
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+        // Fluent 2's accent is normally the Windows system accent; Snips keeps its own
+        // warm-yellow identity from SPEC.md §5.2 instead (systemAccentColor: false pins it
+        // regardless of what the user's Windows accent color is set to).
+        ApplicationAccentColorManager.Apply(
+            Color.FromRgb(0xE0, 0xA8, 0x00), ApplicationTheme.Light,
+            systemGlassColor: false, systemAccentColor: false);
 
         var dbPath = ResolveDatabasePath();
         _database = await SnipsDatabase.OpenAsync(dbPath);

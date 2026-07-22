@@ -10,7 +10,7 @@ namespace Snips.App;
 /// (SPEC.md §5.8). Persists directly via IShortcutRepository — DialogResult=true means
 /// something changed (saved or cleared) and the caller should refresh its list.
 /// </summary>
-public partial class ShortcutCaptureWindow : Window
+public partial class ShortcutCaptureWindow : Wpf.Ui.Controls.FluentWindow
 {
     private readonly string _snippetId;
     private readonly IShortcutRepository _shortcuts;

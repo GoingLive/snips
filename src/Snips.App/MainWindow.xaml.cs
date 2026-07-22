@@ -18,7 +18,7 @@ namespace Snips.App;
 /// <summary>One row in the picker list: a snippet plus its shortcut's display label, if any.</summary>
 internal sealed record PickerRow(Snippet Snippet, string? ShortcutLabel);
 
-public partial class MainWindow : Window
+public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 {
     private readonly SnipsDatabase _database;
     private readonly ForegroundWindowTracker _foregroundTracker;

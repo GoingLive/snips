@@ -2,7 +2,7 @@ using System.Windows;
 
 namespace Snips.App;
 
-public partial class SnippetEditWindow : Window
+public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
 {
     public string EnteredName => NameBox.Text.Trim();
     public string EnteredDescription => DescriptionBox.Text.Trim();

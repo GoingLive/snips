@@ -5,7 +5,7 @@ using Snips.Core.Templates;
 
 namespace Snips.App;
 
-public partial class InteractivePromptWindow : Window
+public partial class InteractivePromptWindow : Wpf.Ui.Controls.FluentWindow
 {
     private sealed record FieldControl(PromptField Field, FrameworkElement Input);
 
@@ -34,7 +34,8 @@ public partial class InteractivePromptWindow : Window
             return new FieldControl(field, checkBox);
         }
 
-        var label = new TextBlock { Text = field.Label, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) };
+        var label = new TextBlock { Text = field.Label, Margin = new Thickness(0, 0, 0, 4) };
+        label.SetResourceReference(FrameworkElement.StyleProperty, "BodyStrongTextBlockStyle");
         FieldsPanel.Children.Add(label);
 
         FrameworkElement input = field switch

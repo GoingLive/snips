@@ -1,11 +1,21 @@
 ﻿<Application x:Class="Snips.App.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:local="clr-namespace:Snips.App">
     <!-- No StartupUri: MainWindow is constructed explicitly in App.OnStartup once the
          database is open, and stays hidden until the hotkey or tray icon shows it
          (SPEC.md §10 default "start minimised to tray: on"). -->
     <Application.Resources>
-
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Fluent 2 via WPF-UI (github.com/lepoco/wpfui) — Microsoft has no official
+                     Fluent 2 control library for WPF (only WinUI 3/web/mobile), so this is the
+                     closest practical approximation without rewriting off WPF. Restyles native
+                     controls (Button, TextBox, CheckBox, ListBox, ...) implicitly. -->
+                <ui:ThemesDictionary Theme="Light" />
+                <ui:ControlsDictionary />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>
