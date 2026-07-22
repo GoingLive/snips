@@ -32,4 +32,9 @@ public sealed class TemplateContext
 
     // Interactive prompts — §7.6
     public IInteractivePrompt? Prompt { get; init; }
+
+    /// <summary>Loaded fresh by the caller from external-variables.json, if present — see
+    /// ExternalVariablesLoader and docs/variables.yaml. Checked as a fallback tier, after
+    /// built-ins, before a placeholder is left as literal text.</summary>
+    public IReadOnlyDictionary<string, string>? ExternalVariables { get; init; }
 }

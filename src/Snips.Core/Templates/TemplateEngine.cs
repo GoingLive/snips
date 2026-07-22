@@ -108,6 +108,19 @@ public static class TemplateEngine
         if (builtIn is not null)
             return builtIn;
 
+        if (context.ExternalVariables is not null)
+        {
+            // Case-insensitive regardless of what comparer the caller's dictionary happens to
+            // use — every other variable-name lookup in the engine is case-insensitive, and an
+            // external-variables.json author shouldn't need to know or care that this one's
+            // different. The map is expected to be tiny, so a linear scan costs nothing real.
+            foreach (var (key, value) in context.ExternalVariables)
+            {
+                if (string.Equals(key, placeholder.Name, StringComparison.OrdinalIgnoreCase))
+                    return value;
+            }
+        }
+
         // Unknown name (typo, or a Phase-5 user-defined/script variable not implemented yet):
         // leave the placeholder text visible rather than silently dropping it — SPEC.md §1.1.
         return Reconstruct(placeholder);

@@ -73,7 +73,8 @@ public partial class App : Application
         // WINEVENT_OUTOFCONTEXT) starts as soon as the Dispatcher message loop is pumping.
         _foregroundTracker = new ForegroundWindowTracker();
 
-        _mainWindow = new MainWindow(_database, _foregroundTracker);
+        var externalVariablesPath = DatabasePathResolver.ResolveExternalVariablesPath(dbPath);
+        _mainWindow = new MainWindow(_database, _foregroundTracker, externalVariablesPath);
         _hotKeyManager = new HotKeyManager(_mainWindow);
 
         var boundLabel = RegisterFirstAvailableHotkey();

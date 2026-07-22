@@ -1,0 +1,231 @@
+# Snips built-in variables — reference
+#
+# This file lists every variable and filter Snips currently resolves. If a name isn't
+# in this file, it is not implemented — Snips leaves it as literal {{...}} text rather
+# than guessing or failing, so a typo or an unsupported name is always visible, never
+# silently dropped.
+#
+# Nothing here can be redefined or added to by the user yet — see docs/SPEC.md §8 and
+# the "proposal" discussed with Roland on 2026-07-22 for where user-defined and
+# externally-supplied variables are headed.
+#
+# Syntax recap:
+#   {{name}}                 no arguments
+#   {{name:arg1:arg2}}       ':' separates the variable's own positional arguments
+#   {{name|filter1|filter2}} '|' chains filters over the resolved value (never mixed
+#                             with ':' for the same purpose — see the note below)
+
+grammar_note: >
+  ':' always separates a variable's own arguments (date, offsets, formats, prompt
+  labels, ...). '|' is reserved exclusively for the filter chain at the end. These
+  never share meaning within one placeholder — {{input:Name:Default|upper}} prompts
+  for Name (defaulting to "Default") and then uppercases whatever was typed.
+
+date_format_warning: >
+  .NET's date format letters are case-SENSITIVE and do not match Excel/PHP-style
+  conventions. In particular: 'M' (uppercase) is month, 'm' (lowercase) is MINUTES —
+  {{date:mm.MM.yyyy}} would put minutes where you meant month. 'd'/'dd' (lowercase)
+  is day in both conventions, so that one matches what most people assume. 'yyyy' is
+  year in both. If a custom format looks wrong, check casing first — this is the
+  single most common variable mistake to expect.
+
+date_format_cheatsheet:
+  year_4_digit: yyyy       # 2026
+  year_2_digit: yy         # 26
+  month_2_digit: MM        # 07  (uppercase M — NOT m)
+  month_name_full: MMMM    # July
+  month_name_short: MMM    # Jul
+  day_2_digit: dd          # 22
+  weekday_full: dddd       # Wednesday
+  weekday_short: ddd       # Wed
+  hour_24h: HH             # 22  (uppercase H — 24-hour clock)
+  hour_12h: hh             # 10  (lowercase h — 12-hour clock, pair with 'tt' for AM/PM)
+  minute: mm                # 48  (lowercase m — NOT M)
+  second: ss                # 03
+  am_pm: tt                 # PM
+  example_common: "dd.MM.yyyy"        # 22.07.2026
+  example_iso: "yyyy-MM-dd"           # 2026-07-22
+  example_us: "MM/dd/yyyy"            # 07/22/2026
+  example_with_time: "dd.MM.yyyy HH:mm"  # 22.07.2026 22:48
+
+date_and_time:
+  - token: "{{year}}"
+    example: "2026"
+    note: fixed format, always yyyy — for a custom format use {{now:...}} instead
+  - token: "{{year2}}"
+    example: "26"
+  - token: "{{month}}"
+    example: "07"
+    note: fixed 2-digit month (MM)
+  - token: "{{day}}"
+    example: "22"
+    note: fixed 2-digit day (dd)
+  - token: "{{hour}}"
+    example: "10"
+    note: fixed, 12-HOUR clock (hh) — this one surprises people expecting 24h; use {{now:HH}} for 24-hour
+  - token: "{{minute}}"
+    example: "48"
+  - token: "{{second}}"
+    example: "03"
+  - token: "{{date}}"
+    example: "2026-07-22"
+    note: "default format yyyy-MM-dd. Optional args: {{date:OFFSET:FORMAT}}"
+  - token: "{{date:+7d:dd.MM.yyyy}}"
+    example: "29.07.2026"
+    note: "date one week from now, custom format. Offset units: s, min, h, d, w, m, y (e.g. -3d, +1y)"
+  - token: "{{time}}"
+    example: "22:48:03"
+    note: "default format HH:mm:ss (24-hour). Optional args: {{time:OFFSET:FORMAT}}"
+  - token: "{{datetime}}"
+    example: "2026-07-22 22:48:03"
+    note: "optional args: {{datetime:OFFSET:FORMAT}}"
+  - token: "{{iso}}"
+    example: "2026-07-22T22:48:03+02:00"
+  - token: "{{now:FORMAT}}"
+    example: "{{now:dd.MM.yyyy HH:mm}} -> 22.07.2026 22:48"
+    note: any .NET custom date format string, no offset support (use {{date:OFFSET:FORMAT}} if you need an offset)
+  - token: "{{utcnow:FORMAT}}"
+    example: same as {{now:...}} but converted to UTC first
+  - token: "{{timestamp}}"
+    example: "1784846883"
+    note: Unix seconds
+  - token: "{{timestampms}}"
+    example: Unix milliseconds
+  - token: "{{weekday}}"
+    example: "Wednesday"
+  - token: "{{monthname}}"
+    example: "July"
+  - token: "{{week}}"
+    example: "30"
+    note: ISO-8601 week number
+  - token: "{{quarter}}"
+    example: "Q3"
+  - token: "{{dayofyear}}"
+    example: "203"
+  - token: "{{daysinmonth}}"
+    example: "31"
+  - token: "{{tomorrow}}"
+    example: "2026-07-23"
+    note: "shorthand for {{date:+1d}}. Optional format arg: {{tomorrow:dd.MM.yyyy}}"
+  - token: "{{yesterday}}"
+    example: "2026-07-21"
+    note: shorthand for {{date:-1d}}, same optional format arg
+  - token: "{{timezone}}"
+    example: "W. Europe Standard Time"
+  - token: "{{utcoffset}}"
+    example: "+02:00"
+
+identity_system_and_paths:
+  - token: "{{user}}"
+    example: Windows login name
+  - token: "{{userfullname}}"
+    note: "currently returns the same as {{user}} — .NET has no separate 'display name' lookup without native interop, which Snips.Core deliberately avoids"
+  - token: "{{useremail}}"
+    note: "reads from Snips' Settings (tray icon -> Settings...). Empty until you set it there."
+  - token: "{{machine}}"
+    example: computer name
+  - token: "{{domain}}"
+    example: Windows domain or workgroup
+  - token: "{{os}}"
+    example: "Windows 11 Pro"
+  - token: "{{osversion}}"
+    example: "10.0.22000"
+  - token: "{{ip}}"
+    example: primary local IPv4 address
+  - token: "{{home}}"
+    example: user profile folder
+  - token: "{{desktop}}"
+  - token: "{{documents}}"
+  - token: "{{downloads}}"
+    note: "best-effort — .NET has no true 'Downloads' known-folder API; this assumes the standard <home>\\Downloads location"
+  - token: "{{temp}}"
+  - token: "{{appdata}}"
+
+context:
+  - token: "{{clipboard}}"
+    note: the clipboard's plain text at the moment the snippet is applied (captured before Snips writes anything to it)
+  - token: "{{selection}}"
+    note: "NOT YET IMPLEMENTED — always resolves empty. Needs a Ctrl+C-simulation step against the target app before rendering; deferred, see SPEC.md §6.3."
+  - token: "{{activewindow}}"
+    note: title of the window that was focused before you opened the picker
+  - token: "{{activeapp}}"
+    note: process name of that window, e.g. "notepad"
+
+snippet_metadata:
+  - token: "{{snippetname}}"
+  - token: "{{snippetid}}"
+  - token: "{{snippetdescription}}"
+  - token: "{{usecount}}"
+    note: how many times this specific snippet has been applied (Enter/hotkey/tray — not just previewed)
+
+generators:
+  - token: "{{guid}}"
+    example: "3f2b1a9c-4e7d-4c1a-9f2e-8b7a6c5d4e3f"
+  - token: "{{id}}"
+    note: a fresh Snips-format 19-digit snowflake ID
+  - token: "{{random}}"
+    example: a number 0-99
+  - token: "{{random:1-100}}"
+    note: bounded, inclusive on both ends
+  - token: "{{randomstring:12}}"
+    note: N random alphanumeric characters (default 12 if no arg given)
+  - token: "{{counter:Invoice}}"
+    note: "a NAMED counter that persists between uses and increments by 1 each time. First use of a name starts at 1."
+  - token: "{{counter:Invoice:5:0000}}"
+    example: "0005"
+    note: "args are NAME:STEP:FORMAT — increments by 5 instead of 1, formats with leading zeros"
+
+interactive_prompts:
+  # These pop up ONE combined form before applying — repeating the same label reuses
+  # one field instead of asking twice. Never triggered by mere selection/preview, only
+  # by an actual apply (Enter, double-click-equivalent, or a hotkey).
+  - token: "{{input:Name}}"
+    note: single-line text prompt
+  - token: "{{input:Name:Default}}"
+    note: "same, pre-filled with 'Default'"
+  - token: "{{multiline:Notes}}"
+    note: multi-line text prompt
+  - token: "{{choice:Size:S,M,L}}"
+    note: dropdown of the given comma-separated options
+  - token: "{{datepick:When:yyyy-MM-dd}}"
+    note: "date picker; second arg is the output format"
+  - token: "{{check:Confirmed:yes,no}}"
+    note: "checkbox; args are the value used when checked,unchecked"
+
+filters:
+  # Chainable with |, applied left to right AFTER the variable resolves.
+  # {{clipboard|trim|upper}} trims whitespace, then uppercases.
+  - name: upper
+  - name: lower
+  - name: title
+    note: Title Case Each Word
+  - name: capitalize
+    note: capitalizes only the first character
+  - name: trim
+  - name: slug
+    example: "'Hello, World!' -> 'hello-world'"
+  - name: urlencode
+  - name: urldecode
+  - name: base64
+  - name: unbase64
+  - name: md5
+  - name: sha256
+  - name: reverse
+  - name: "left:N"
+    example: "{{clipboard|left:5}} -> first 5 characters"
+  - name: "right:N"
+  - name: "replace:from,to"
+    example: "{{name|replace:e,x}}"
+  - name: "padleft:N,char"
+    example: "{{counter:x|padleft:4,0}} -> zero-padded to 4 digits"
+  - name: "padright:N,char"
+  - name: escapexml
+  - name: escapejson
+  - name: nospaces
+    note: strips all whitespace, not just spaces
+
+not_yet_implemented:
+  - "{{selection}} — always empty, see context section above"
+  - "{{cursor}} — post-paste caret positioning, not built"
+  - user-defined variables (constants or scripts) — nothing exists yet for a user to define their own
+  - externally-supplied variables (e.g. from a JSON file or another app) — proposed, not built; see chat log 2026-07-22

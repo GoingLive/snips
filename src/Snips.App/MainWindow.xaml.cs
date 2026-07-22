@@ -22,16 +22,18 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 {
     private readonly SnipsDatabase _database;
     private readonly ForegroundWindowTracker _foregroundTracker;
+    private readonly string _externalVariablesPath;
     private List<Snippet> _allSnippets = [];
     private Dictionary<string, string> _shortcutLabelsBySnippetId = [];
     private string? _userEmail;
     private bool _isExiting;
 
-    public MainWindow(SnipsDatabase database, ForegroundWindowTracker foregroundTracker)
+    public MainWindow(SnipsDatabase database, ForegroundWindowTracker foregroundTracker, string externalVariablesPath)
     {
         InitializeComponent();
         _database = database;
         _foregroundTracker = foregroundTracker;
+        _externalVariablesPath = externalVariablesPath;
         Title = $"Snips — {BuildIdentifier.Value}";
         BuildInfoText.Text = BuildIdentifier.Value;
         Loaded += async (_, _) => await RefreshListAsync();
@@ -273,6 +275,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             IdGenerator = _database.IdGenerator,
             Counters = includeCounters ? _database.Counters : null,
             Prompt = prompt,
+            // Re-read fresh every render, not cached — see ExternalVariablesLoader's doc comment
+            // for why: another process updating the file should be picked up on the very next
+            // paste, and the file is expected to be tiny enough that this costs nothing real.
+            ExternalVariables = ExternalVariablesLoader.TryLoad(_externalVariablesPath),
         };
     }
 

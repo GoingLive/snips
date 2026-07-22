@@ -9,7 +9,8 @@ public class TemplateEngineTests
     private static TemplateContext MakeContext(
         string snippetName = "Test Snippet", string snippetDescription = "", int useCount = 0,
         string? clipboard = null, string? activeWindow = null, string? activeApp = null,
-        ICounterStore? counters = null, IInteractivePrompt? prompt = null) => new()
+        ICounterStore? counters = null, IInteractivePrompt? prompt = null,
+        IReadOnlyDictionary<string, string>? externalVariables = null) => new()
     {
         Now = FixedNow,
         SystemInfo = new FakeSystemInfoProvider(),
@@ -21,6 +22,7 @@ public class TemplateEngineTests
         ActiveAppName = activeApp,
         Counters = counters,
         Prompt = prompt,
+        ExternalVariables = externalVariables,
     };
 
     // --- §7.1 Date and time -------------------------------------------------------------
@@ -170,6 +172,48 @@ public class TemplateEngineTests
     {
         var result = await TemplateEngine.RenderAsync("Dear {{totallyMadeUp}},", MakeContext());
         Assert.Equal("Dear {{totallyMadeUp}},", result.Text);
+    }
+
+    // --- External variables (docs/variables.yaml "not_yet_implemented", proposal 2026-07-22) ---
+
+    [Fact]
+    public async Task ExternalVariable_ResolvesWhenNotABuiltIn()
+    {
+        var external = new Dictionary<string, string> { ["companyname"] = "Acme AG" };
+        var result = await TemplateEngine.RenderAsync(
+            "{{companyname}}", MakeContext(externalVariables: external));
+
+        Assert.Equal("Acme AG", result.Text);
+    }
+
+    [Fact]
+    public async Task ExternalVariable_LookupIsCaseInsensitive()
+    {
+        var external = new Dictionary<string, string> { ["CompanyName"] = "Acme AG" };
+        var result = await TemplateEngine.RenderAsync(
+            "{{companyname}}", MakeContext(externalVariables: external));
+
+        Assert.Equal("Acme AG", result.Text);
+    }
+
+    [Fact]
+    public async Task BuiltInVariable_TakesPrecedenceOverAnExternalVariableOfTheSameName()
+    {
+        // A built-in name can't be shadowed — avoids a confusing collision where an external
+        // file silently changes what {{date}} means.
+        var external = new Dictionary<string, string> { ["date"] = "not-a-real-date" };
+        var result = await TemplateEngine.RenderAsync(
+            "{{date}}", MakeContext(externalVariables: external));
+
+        Assert.Equal("2026-07-21", result.Text);
+    }
+
+    [Fact]
+    public async Task NoExternalVariablesConfigured_UnknownNameStillFallsBackToLiteral()
+    {
+        var result = await TemplateEngine.RenderAsync("{{companyname}}", MakeContext(externalVariables: null));
+
+        Assert.Equal("{{companyname}}", result.Text);
     }
 
     [Fact]
