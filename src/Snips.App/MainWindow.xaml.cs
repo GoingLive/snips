@@ -182,11 +182,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
-    /// <summary>Double-click activates the row (same as Enter) rather than opening the editor —
-    /// matches the "double-click to open/activate" convention elsewhere in Windows. Edit is
-    /// still reachable via the right-click menu or Ctrl+E.</summary>
+    /// <summary>Double-click opens the editor. This was briefly changed to activate-the-row
+    /// instead (matching the Explorer convention), but Roland pushed back — he doesn't want the
+    /// window disappearing on a double-click, and wants a discoverable way to edit. Reverted.</summary>
     private void ResultsList_MouseDoubleClick(object sender, MouseButtonEventArgs e) =>
-        _ = ApplySelectedAsync(keepOpen: false);
+        _ = EditSelectedAsync();
 
     /// <summary>Right-click should act on the row under the cursor, not whatever was already selected.</summary>
     private void ResultsList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
@@ -222,6 +222,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         // {{clipboard}} variable's value and the backup to restore after a transient paste.
         var originalClipboard = ClipboardTextGuard.TryGetCurrentText();
 
+        // No Settings view exists yet (Phase 6) to let the user type this in, so it will
+        // resolve empty until then — reading it now means the plumbing is already correct
+        // for whenever that screen exists, rather than needing an engine change later.
+        var userEmail = await _database.Settings.GetAsync("UserEmail");
+
         var context = new TemplateContext
         {
             Now = DateTimeOffset.Now,
@@ -231,6 +236,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             SnippetId = snippet.Id,
             SnippetDescription = snippet.Description,
             UseCount = snippet.UseCount,
+            UserEmail = userEmail,
             ClipboardText = originalClipboard,
             ActiveWindowTitle = target is { } titleTarget ? ActiveWindowInfo.GetWindowTitle(titleTarget) : null,
             ActiveAppName = target is { } appTarget ? ActiveWindowInfo.GetProcessName(appTarget) : null,

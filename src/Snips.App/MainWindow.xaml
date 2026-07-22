@@ -13,10 +13,13 @@
         PreviewKeyDown="MainWindow_PreviewKeyDown">
     <ui:FluentWindow.Resources>
         <SolidColorBrush x:Key="Accent" Color="#E0A800"/>
-        <SolidColorBrush x:Key="Surface" Color="#E0A800"/>
-        <SolidColorBrush x:Key="SurfaceSelected" Color="#B88200"/>
-        <SolidColorBrush x:Key="TextOnSurface" Color="White"/>
-        <SolidColorBrush x:Key="TextOnSurfaceMuted" Color="#FFF3D6"/>
+        <!-- Roland's contrast fix: orange is a highlight, not a reading surface — rows are
+             white with deep-brown text, orange is reserved for the dividing lines. -->
+        <SolidColorBrush x:Key="Surface" Color="White"/>
+        <SolidColorBrush x:Key="SurfaceSelected" Color="#FFE3B0"/>
+        <SolidColorBrush x:Key="RowDivider" Color="#E67300"/>
+        <SolidColorBrush x:Key="TextOnSurface" Color="#3E2A15"/>
+        <SolidColorBrush x:Key="TextOnSurfaceMuted" Color="#8A6B4A"/>
         <SolidColorBrush x:Key="TextSecondary" Color="#6B6355"/>
     </ui:FluentWindow.Resources>
 
@@ -41,14 +44,17 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Draggable title bar — FluentWindow suppresses the native one, so this is what
-                 makes the window movable, and its own height is what gives the top edge room
-                 to breathe before the search field. -->
-            <ui:TitleBar Grid.Row="0" Title="Snips" ShowMaximize="False"/>
+            <!-- Draggable strip — FluentWindow suppresses the native title bar, so this is what
+                 makes the window movable. Title text is left blank here; the real heading below
+                 (left-aligned to match every other label) is what's actually meant to be read. -->
+            <ui:TitleBar Grid.Row="0" Title="" ShowMaximize="False"/>
 
-            <TextBlock Grid.Row="1" Text="The tool to define and paste snippets at your fingertips."
-                       Style="{StaticResource CaptionTextBlockStyle}" Foreground="{StaticResource TextSecondary}"
-                       Margin="16,0,16,8" TextWrapping="Wrap"/>
+            <StackPanel Grid.Row="1" Margin="16,0,16,10">
+                <TextBlock Text="Snips" FontSize="20" FontWeight="Bold"/>
+                <TextBlock Text="The tool to define and paste snippets at your fingertips."
+                           Style="{StaticResource CaptionTextBlockStyle}" Foreground="{StaticResource TextSecondary}"
+                           TextWrapping="Wrap" Margin="0,2,0,0"/>
+            </StackPanel>
 
             <Grid Grid.Row="2" Margin="16,0,16,12">
                 <Grid.RowDefinitions>
@@ -104,7 +110,8 @@
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="{StaticResource Surface}" CornerRadius="4">
+                            <Border Background="{StaticResource Surface}"
+                                    BorderBrush="{StaticResource RowDivider}" BorderThickness="0,0,0,1">
                                 <Grid Margin="8,6">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
