@@ -22,16 +22,35 @@ public static class ClipboardTextGuard
         }
     }
 
-    public static void SetText(string text)
+    /// <summary>
+    /// Returns false if every attempt failed. The Windows clipboard is a single shared
+    /// resource — OpenClipboard commonly fails transiently for a few milliseconds while another
+    /// process (clipboard history, a clipboard manager, anti-virus scanning a copy) is holding
+    /// it, not just when something is broken. A single try-once call was silently losing writes
+    /// under exactly this kind of contention, so this retries briefly before giving up for real.
+    /// </summary>
+    public static bool SetText(string text)
     {
-        try
+        const int maxAttempts = 10;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            System.Windows.Clipboard.SetText(text);
+            try
+            {
+                System.Windows.Clipboard.SetText(text);
+                return true;
+            }
+            catch (COMException) when (attempt < maxAttempts)
+            {
+                Thread.Sleep(15);
+            }
+            catch (COMException)
+            {
+                return false;
+            }
         }
-        catch (COMException)
-        {
-            // Another process is holding the clipboard open; nothing we can do about that here.
-        }
+
+        return false;
     }
 
     /// <summary>Waits delayMs, then restores previousText (or clears the clipboard if there was none).</summary>
@@ -39,12 +58,17 @@ public static class ClipboardTextGuard
     {
         await Task.Delay(delayMs, ct);
 
+        if (previousText is not null)
+            SetText(previousText);
+        else
+            TryClear();
+    }
+
+    private static void TryClear()
+    {
         try
         {
-            if (previousText is not null)
-                System.Windows.Clipboard.SetText(previousText);
-            else
-                System.Windows.Clipboard.Clear();
+            System.Windows.Clipboard.Clear();
         }
         catch (COMException)
         {

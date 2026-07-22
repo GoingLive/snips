@@ -94,6 +94,10 @@
                 <CheckBox x:Name="PasteCheckBox" Content="Paste into active app" IsChecked="False" Margin="0,0,0,4"/>
                 <TextBlock x:Name="StatusText" Foreground="{StaticResource TextSecondary}" FontSize="11"
                            TextWrapping="Wrap" Margin="0,4,0,0"/>
+                <TextBlock x:Name="BuildInfoText" Foreground="{StaticResource TextSecondary}" FontSize="10"
+                           TextWrapping="Wrap" Margin="0,8,0,0" Cursor="Hand"
+                           ToolTip="Click to copy this build identifier"
+                           MouseLeftButtonDown="BuildInfoText_MouseLeftButtonDown"/>
             </StackPanel>
         </Grid>
     </Grid>

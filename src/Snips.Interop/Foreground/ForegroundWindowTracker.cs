@@ -24,6 +24,18 @@ public sealed class ForegroundWindowTracker : IDisposable
         _hookHandle = NativeMethods.SetWinEventHook(
             EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero,
             _callback, 0, 0, WINEVENT_OUTOFCONTEXT);
+
+        // The hook only fires on subsequent CHANGES. Without this, whatever app was already
+        // focused when Snips started (the common case — nobody switches windows just to launch
+        // a tray app) would never be captured, and the very first paste attempt would have no
+        // target at all.
+        var current = NativeMethods.GetForegroundWindow();
+        if (current != IntPtr.Zero)
+        {
+            NativeMethods.GetWindowThreadProcessId(current, out var processId);
+            if (processId != _ownProcessId)
+                LastExternalForegroundWindow = current;
+        }
     }
 
     private void OnForegroundChanged(
@@ -59,5 +71,8 @@ public sealed class ForegroundWindowTracker : IDisposable
 
         [DllImport("user32.dll")]
         public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetForegroundWindow();
     }
 }

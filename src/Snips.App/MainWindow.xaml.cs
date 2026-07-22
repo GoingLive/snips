@@ -32,6 +32,7 @@ public partial class MainWindow : Window
         _database = database;
         _foregroundTracker = foregroundTracker;
         Title = $"Snips — {BuildIdentifier.Value}";
+        BuildInfoText.Text = BuildIdentifier.Value;
         Loaded += async (_, _) => await RefreshListAsync();
     }
 
@@ -181,7 +182,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ResultsList_MouseDoubleClick(object sender, MouseButtonEventArgs e) => _ = EditSelectedAsync();
+    /// <summary>Double-click activates the row (same as Enter) rather than opening the editor —
+    /// matches the "double-click to open/activate" convention elsewhere in Windows. Edit is
+    /// still reachable via the right-click menu or Ctrl+E.</summary>
+    private void ResultsList_MouseDoubleClick(object sender, MouseButtonEventArgs e) =>
+        _ = ApplySelectedAsync(keepOpen: false);
 
     /// <summary>Right-click should act on the row under the cursor, not whatever was already selected.</summary>
     private void ResultsList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
@@ -247,10 +252,15 @@ public partial class MainWindow : Window
         // (SPEC.md §6.4), so there is nothing to restore.
         string? clipboardBackup = paste && !copy ? originalClipboard : null;
 
+        var clipboardWriteOk = true;
         if (copy || paste)
-            ClipboardTextGuard.SetText(rendered.Text);
+            clipboardWriteOk = ClipboardTextGuard.SetText(rendered.Text);
 
-        if (paste)
+        if (!clipboardWriteOk)
+        {
+            SetStatus(statusTarget, "Couldn't write to the clipboard — it was busy. Try again.");
+        }
+        else if (paste)
         {
             if (target is null)
             {
@@ -417,6 +427,15 @@ public partial class MainWindow : Window
     private void TrayIcon_TrayLeftMouseDoubleClick(object sender, RoutedEventArgs e) => ShowAndFocus();
 
     private void QuitMenuItem_Click(object sender, RoutedEventArgs e) => RequestExit();
+
+    /// <summary>Roland asked for shift-click specifically; a plain click is used instead since
+    /// the cursor/tooltip already signal it's clickable and a modifier requirement wouldn't be
+    /// discoverable without that being written down somewhere.</summary>
+    private void BuildInfoText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (ClipboardTextGuard.SetText(BuildIdentifier.Value))
+            StatusText.Text = "Build identifier copied to clipboard.";
+    }
 
     /// <summary>
     /// Placeholder until the WebView2 rich editor lands in Phase 3 (SPEC.md §5.7): wraps plain
