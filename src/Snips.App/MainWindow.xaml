@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:tb="http://www.hardcodet.net/taskbar"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-        Title="Snips" Height="560" Width="420" MinHeight="360" MinWidth="320"
+        Title="Snips" Height="600" Width="420" MinHeight="400" MinWidth="320"
         Icon="Resources/tray.ico"
         Background="#FFFBEA"
         WindowBackdropType="None"
@@ -13,7 +13,10 @@
         PreviewKeyDown="MainWindow_PreviewKeyDown">
     <ui:FluentWindow.Resources>
         <SolidColorBrush x:Key="Accent" Color="#E0A800"/>
-        <SolidColorBrush x:Key="Surface" Color="#FFF6D8"/>
+        <SolidColorBrush x:Key="Surface" Color="#E0A800"/>
+        <SolidColorBrush x:Key="SurfaceSelected" Color="#B88200"/>
+        <SolidColorBrush x:Key="TextOnSurface" Color="White"/>
+        <SolidColorBrush x:Key="TextOnSurfaceMuted" Color="#FFF3D6"/>
         <SolidColorBrush x:Key="TextSecondary" Color="#6B6355"/>
     </ui:FluentWindow.Resources>
 
@@ -31,79 +34,125 @@
             </tb:TaskbarIcon.ContextMenu>
         </tb:TaskbarIcon>
 
-        <Grid Margin="12">
+        <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="2*"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="1*"/>
-                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Search -->
-            <TextBox x:Name="SearchBox" Grid.Row="0" Margin="0,0,0,8" Padding="6,4"
-                     FontSize="14"
-                     TextChanged="SearchBox_TextChanged"
-                     PreviewKeyDown="SearchBox_PreviewKeyDown"/>
+            <!-- Draggable title bar — FluentWindow suppresses the native one, so this is what
+                 makes the window movable, and its own height is what gives the top edge room
+                 to breathe before the search field. -->
+            <ui:TitleBar Grid.Row="0" Title="Snips" ShowMaximize="False"/>
 
-            <!-- Results -->
-            <ListBox x:Name="ResultsList" Grid.Row="1" Margin="0,0,0,8"
-                     Background="{StaticResource Surface}" BorderThickness="0"
-                     SelectionChanged="ResultsList_SelectionChanged"
-                     MouseDoubleClick="ResultsList_MouseDoubleClick"
-                     KeyDown="ResultsList_KeyDown"
-                     PreviewMouseRightButtonDown="ResultsList_PreviewMouseRightButtonDown">
-                <ListBox.ContextMenu>
-                    <ContextMenu>
-                        <MenuItem Header="New" Click="NewMenuItem_Click"/>
-                        <MenuItem Header="Edit" Click="EditMenuItem_Click"/>
-                        <MenuItem Header="Duplicate" Click="DuplicateMenuItem_Click"/>
-                        <MenuItem Header="Delete" Click="DeleteMenuItem_Click"/>
-                        <Separator/>
-                        <MenuItem Header="Define a shortcut…" Click="DefineShortcutMenuItem_Click"/>
-                    </ContextMenu>
-                </ListBox.ContextMenu>
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Margin="6,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="{Binding Snippet.Name}" Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                                <TextBlock Text="{Binding Snippet.Description}" Style="{StaticResource CaptionTextBlockStyle}"
-                                           Foreground="{StaticResource TextSecondary}" TextTrimming="CharacterEllipsis"/>
-                            </StackPanel>
-                            <TextBlock Grid.Column="1" Text="{Binding ShortcutLabel}" Style="{StaticResource CaptionTextBlockStyle}"
-                                       Foreground="{StaticResource TextSecondary}"
-                                       VerticalAlignment="Center" Margin="8,0,0,0"/>
-                        </Grid>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+            <TextBlock Grid.Row="1" Text="The tool to define and paste snippets at your fingertips."
+                       Style="{StaticResource CaptionTextBlockStyle}" Foreground="{StaticResource TextSecondary}"
+                       Margin="16,0,16,8" TextWrapping="Wrap"/>
 
-            <TextBlock Grid.Row="2" Text="Preview" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,4"/>
+            <Grid Grid.Row="2" Margin="16,0,16,12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="2*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="1*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-            <!-- Preview / result field -->
-            <TextBox x:Name="PreviewBox" Grid.Row="3" Margin="0,0,0,8"
-                     IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
-                     VerticalScrollBarVisibility="Auto"
-                     Background="White"/>
+                <!-- Search + quick add -->
+                <Grid Grid.Row="0" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="SearchBox" Grid.Column="0" Padding="6,4"
+                             FontSize="14"
+                             TextChanged="SearchBox_TextChanged"
+                             PreviewKeyDown="SearchBox_PreviewKeyDown"/>
+                    <ui:Button x:Name="NewSnippetButton" Grid.Column="1" Content="New" Appearance="Primary"
+                               Margin="8,0,0,0" Click="NewSnippetButton_Click"/>
+                </Grid>
 
-            <!-- Output options -->
-            <StackPanel Grid.Row="4">
-                <CheckBox x:Name="CopyCheckBox" Content="Copy to clipboard" IsChecked="True" Margin="0,0,0,4"/>
-                <CheckBox x:Name="PasteCheckBox" Content="Paste into active app" IsChecked="False" Margin="0,0,0,4"/>
-                <TextBlock x:Name="StatusText" Style="{StaticResource CaptionTextBlockStyle}"
-                           Foreground="{StaticResource TextSecondary}"
-                           TextWrapping="Wrap" Margin="0,4,0,0"/>
-                <TextBlock x:Name="BuildInfoText" Style="{StaticResource CaptionTextBlockStyle}"
-                           Foreground="{StaticResource TextSecondary}"
-                           TextWrapping="Wrap" Margin="0,8,0,0" Cursor="Hand"
-                           ToolTip="Click to copy this build identifier"
-                           MouseLeftButtonDown="BuildInfoText_MouseLeftButtonDown"/>
-            </StackPanel>
+                <!-- Results -->
+                <ListBox x:Name="ResultsList" Grid.Row="1" Margin="0,0,0,8" Padding="0,0,6,0"
+                         Background="Transparent" BorderThickness="0"
+                         SelectionChanged="ResultsList_SelectionChanged"
+                         MouseDoubleClick="ResultsList_MouseDoubleClick"
+                         KeyDown="ResultsList_KeyDown"
+                         PreviewMouseRightButtonDown="ResultsList_PreviewMouseRightButtonDown">
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="New" Click="NewMenuItem_Click"/>
+                            <MenuItem Header="Edit" Click="EditMenuItem_Click"/>
+                            <MenuItem Header="Duplicate" Click="DuplicateMenuItem_Click"/>
+                            <MenuItem Header="Delete" Click="DeleteMenuItem_Click"/>
+                            <Separator/>
+                            <MenuItem Header="Define a shortcut…" Click="DefineShortcutMenuItem_Click"/>
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0,0,0,2"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource SurfaceSelected}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{StaticResource Surface}" CornerRadius="4">
+                                <Grid Margin="8,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding Snippet.Name}" Style="{StaticResource BodyStrongTextBlockStyle}"
+                                                   Foreground="{StaticResource TextOnSurface}"/>
+                                        <TextBlock Text="{Binding Snippet.Description}" Style="{StaticResource CaptionTextBlockStyle}"
+                                                   Foreground="{StaticResource TextOnSurfaceMuted}" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding ShortcutLabel}" Style="{StaticResource CaptionTextBlockStyle}"
+                                               Foreground="{StaticResource TextOnSurfaceMuted}"
+                                               VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <TextBlock Grid.Row="2" Text="Preview" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,4"/>
+
+                <!-- Preview / result field -->
+                <TextBox x:Name="PreviewBox" Grid.Row="3" Margin="0,0,0,8"
+                         IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto"
+                         Background="White"/>
+
+                <!-- Output options -->
+                <StackPanel Grid.Row="4">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <CheckBox x:Name="CopyCheckBox" Content="Copy to clipboard" IsChecked="True" Margin="0,0,16,0"/>
+                        <CheckBox x:Name="PasteCheckBox" Content="Paste into active app" IsChecked="False"/>
+                    </StackPanel>
+                    <TextBlock x:Name="StatusText" Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{StaticResource TextSecondary}"
+                               TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="© 2026 Roland Hüttmann" Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{StaticResource TextSecondary}" Margin="0,0,8,0"/>
+                        <TextBlock x:Name="BuildInfoText" Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   TextWrapping="Wrap" Cursor="Hand"
+                                   ToolTip="Click to copy this build identifier"
+                                   MouseLeftButtonDown="BuildInfoText_MouseLeftButtonDown"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
         </Grid>
     </Grid>
 </ui:FluentWindow>

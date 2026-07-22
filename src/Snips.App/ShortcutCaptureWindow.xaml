@@ -7,33 +7,42 @@
         WindowBackdropType="None" WindowCornerPreference="Round"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize" ShowInTaskbar="False">
-    <Grid Margin="16">
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock x:Name="TitleText" Grid.Row="0" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+        <ui:TitleBar Grid.Row="0" Title="Snips" ShowMaximize="False" ShowMinimize="False"/>
 
-        <Border Grid.Row="1" Background="White" BorderBrush="#E0A800" BorderThickness="1"
-                CornerRadius="4" Padding="12" Margin="0,0,0,4">
-            <TextBlock x:Name="CapturedText" Text="Press a key combination…"
-                       FontSize="16" HorizontalAlignment="Center"/>
-        </Border>
+        <Grid Grid.Row="1" Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="2" x:Name="ErrorText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="#B00020" TextWrapping="Wrap"
-                   Margin="0,4,0,8" Visibility="Collapsed"/>
+            <TextBlock x:Name="TitleText" Grid.Row="0" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
-        <TextBlock Grid.Row="3" Text="Requires at least one modifier (Ctrl/Alt/Shift/Win), or a bare F1–F24 key. Esc cancels."
-                   Style="{StaticResource CaptionTextBlockStyle}" Foreground="#6B6355" TextWrapping="Wrap" Margin="0,0,0,12"/>
+            <Border Grid.Row="1" Background="White" BorderBrush="#E0A800" BorderThickness="1"
+                    CornerRadius="4" Padding="12" Margin="0,0,0,4">
+                <TextBlock x:Name="CapturedText" Text="Press a key combination…"
+                           FontSize="16" HorizontalAlignment="Center"/>
+            </Border>
 
-        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
-            <ui:Button x:Name="ClearButton" Content="Clear shortcut" Appearance="Secondary" Width="100" Margin="0,0,8,0" Click="ClearButton_Click"/>
-            <ui:Button x:Name="CancelButton" Content="Cancel" Appearance="Secondary" Width="80" Margin="0,0,8,0" Click="CancelButton_Click"/>
-            <ui:Button x:Name="SaveButton" Content="Save" Appearance="Primary" Width="80" IsEnabled="False" Click="SaveButton_Click"/>
-        </StackPanel>
+            <TextBlock Grid.Row="2" x:Name="ErrorText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="#B00020" TextWrapping="Wrap"
+                       Margin="0,4,0,8" Visibility="Collapsed"/>
+
+            <TextBlock Grid.Row="3" Text="Requires at least one modifier (Ctrl/Alt/Shift/Win), or a bare F1–F24 key. Esc cancels."
+                       Style="{StaticResource CaptionTextBlockStyle}" Foreground="#6B6355" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+                <ui:Button x:Name="ClearButton" Content="Clear shortcut" Appearance="Secondary" Width="100" Margin="0,0,8,0" Click="ClearButton_Click"/>
+                <ui:Button x:Name="CancelButton" Content="Cancel" Appearance="Secondary" Width="80" Margin="0,0,8,0" Click="CancelButton_Click"/>
+                <ui:Button x:Name="SaveButton" Content="Save" Appearance="Primary" Width="80" IsEnabled="False" Click="SaveButton_Click"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </ui:FluentWindow>

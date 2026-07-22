@@ -408,6 +408,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     }
 
     private void NewMenuItem_Click(object sender, RoutedEventArgs e) => _ = NewSnippetAsync();
+    private void NewSnippetButton_Click(object sender, RoutedEventArgs e) => _ = NewSnippetAsync();
     private void EditMenuItem_Click(object sender, RoutedEventArgs e) => _ = EditSelectedAsync();
     private void DuplicateMenuItem_Click(object sender, RoutedEventArgs e) => _ = DuplicateSelectedAsync();
     private void DeleteMenuItem_Click(object sender, RoutedEventArgs e) => _ = DeleteSelectedAsync();

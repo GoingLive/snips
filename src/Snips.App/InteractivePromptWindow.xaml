@@ -10,19 +10,28 @@
         KeyDown="Window_KeyDown">
     <!-- Fields are built dynamically in code-behind — one form per SPEC.md §7.6, however
          many interactive placeholders the snippet contains. -->
-    <Grid Margin="16">
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ScrollViewer Grid.Row="0" MaxHeight="420" VerticalScrollBarVisibility="Auto">
-            <StackPanel x:Name="FieldsPanel"/>
-        </ScrollViewer>
+        <ui:TitleBar Grid.Row="0" Title="Snips" ShowMaximize="False" ShowMinimize="False"/>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-            <ui:Button x:Name="CancelButton" Content="Cancel" Appearance="Secondary" Width="80" Margin="0,0,8,0" Click="CancelButton_Click"/>
-            <ui:Button x:Name="OkButton" Content="OK" Appearance="Primary" Width="80" IsDefault="True" Click="OkButton_Click"/>
-        </StackPanel>
+        <Grid Grid.Row="1" Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <ScrollViewer Grid.Row="0" MaxHeight="420" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="FieldsPanel"/>
+            </ScrollViewer>
+
+            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                <ui:Button x:Name="CancelButton" Content="Cancel" Appearance="Secondary" Width="80" Margin="0,0,8,0" Click="CancelButton_Click"/>
+                <ui:Button x:Name="OkButton" Content="OK" Appearance="Primary" Width="80" IsDefault="True" Click="OkButton_Click"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </ui:FluentWindow>
