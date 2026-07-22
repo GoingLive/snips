@@ -53,7 +53,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         // from an earlier test is exactly how surprises like this happen.
         CopyCheckBox.IsChecked = true;
         PasteCheckBox.IsChecked = false;
-        KeepOpenCheckBox.IsChecked = false;
         await RefreshListAsync();
         SearchBox.Focus();
     }
@@ -119,9 +118,24 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         menu.Items.Add(new Separator());
+        var settings = new MenuItem { Header = "Settings…" };
+        settings.Click += (_, _) => _ = OpenSettingsAsync();
+        menu.Items.Add(settings);
+
         var quit = new MenuItem { Header = "Quit" };
         quit.Click += QuitMenuItem_Click;
         menu.Items.Add(quit);
+    }
+
+    /// <summary>Minimal for now — just the one field {{useremail}} needs. Roland's "Email
+    /// signature" example snippet was resolving with a blank email line because there was
+    /// nowhere to configure it; this is the direct fix for that, not the full Phase 6
+    /// Settings view.</summary>
+    private async Task OpenSettingsAsync()
+    {
+        var dialog = new SettingsWindow(_database.Settings, _userEmail) { Owner = this };
+        if (dialog.ShowDialog() == true)
+            await RefreshListAsync();
     }
 
     private void ApplyFilter()
@@ -179,7 +193,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         switch (e.Key)
         {
             case Key.Enter:
-                _ = ApplySelectedAsync(keepOpen: KeepOpenCheckBox.IsChecked == true || Keyboard.Modifiers.HasFlag(ModifierKeys.Control));
+                _ = ApplySelectedAsync(keepOpen: Keyboard.Modifiers.HasFlag(ModifierKeys.Control));
                 e.Handled = true;
                 break;
             case Key.Escape:
