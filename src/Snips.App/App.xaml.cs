@@ -1,4 +1,5 @@
 using System.IO;
+using System.Threading;
 using System.Windows;
 using System.Windows.Media;
 using Snips.Core.Domain;
@@ -27,15 +28,35 @@ public partial class App : Application
         (HotKeyModifiers.Control | HotKeyModifiers.Alt, VK_BACKTICK, "Ctrl+Alt+`"),
     ];
 
+    private const string SingleInstanceMutexName = "Local\\Snips.SingleInstance";
+    private const string ShowRequestEventName = "Local\\Snips.ShowRequest";
+
     private SnipsDatabase? _database;
     private ForegroundWindowTracker? _foregroundTracker;
     private HotKeyManager? _hotKeyManager;
     private MainWindow? _mainWindow;
+    private Mutex? _singleInstanceMutex;
+    private EventWaitHandle? _showRequestEvent;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+        // Snips always starts hidden in the tray by design (SPEC.md §10) — which means a
+        // second launch (e.g. double-clicking the desktop shortcut again while it's already
+        // running) previously just started an invisible duplicate process with no feedback
+        // at all. That's exactly what Roland hit and reported as "does nothing." Enforce a
+        // single instance and have a relaunch just show the existing window instead.
+        _singleInstanceMutex = new Mutex(initiallyOwned: true, SingleInstanceMutexName, out var createdNew);
+        _showRequestEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowRequestEventName);
+
+        if (!createdNew)
+        {
+            _showRequestEvent.Set();
+            Shutdown();
+            return;
+        }
 
         // Fluent 2's accent is normally the Windows system accent; Snips keeps its own
         // warm-yellow identity from SPEC.md §5.2 instead (systemAccentColor: false pins it
@@ -84,7 +105,20 @@ public partial class App : Application
 
         await RegisterPerSnippetHotkeysAsync();
 
+        _ = ListenForShowRequestsAsync();
+
         // Intentionally not shown here — starts minimised to the tray (SPEC.md §10 default).
+    }
+
+    /// <summary>Runs for the lifetime of the app, waiting on a background thread for a later
+    /// launch to signal "show yourself" (see the single-instance check in OnStartup).</summary>
+    private async Task ListenForShowRequestsAsync()
+    {
+        while (true)
+        {
+            await Task.Run(() => _showRequestEvent!.WaitOne());
+            _mainWindow?.ShowAndFocus();
+        }
     }
 
     /// <summary>
@@ -140,6 +174,8 @@ public partial class App : Application
         _hotKeyManager?.Dispose();
         _foregroundTracker?.Dispose();
         _database?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        _showRequestEvent?.Dispose();
+        _singleInstanceMutex?.Dispose();
         base.OnExit(e);
     }
 
