@@ -6,7 +6,8 @@ public enum PasteResult
 {
     Sent,
     TargetGone,
-    AccessDenied, // UIPI: target runs elevated and we don't. See SPEC.md §6.2.
+    AccessDenied,  // UIPI: target runs elevated and we don't. See SPEC.md §6.2.
+    FocusTimeout,  // SetForegroundWindow "succeeded" but the target never actually became foreground in time.
 }
 
 /// <summary>
@@ -16,7 +17,7 @@ public enum PasteResult
 /// </summary>
 public static class PasteSender
 {
-    public static PasteResult TrySendPaste(IntPtr targetHwnd, int delayMs)
+    public static PasteResult TrySendPaste(IntPtr targetHwnd, int timeoutMs)
     {
         if (targetHwnd == IntPtr.Zero || !NativeMethods.IsWindow(targetHwnd))
             return PasteResult.TargetGone;
@@ -34,6 +35,16 @@ public static class PasteSender
                 return PasteResult.AccessDenied;
 
             NativeMethods.BringWindowToTop(targetHwnd);
+
+            // SetForegroundWindow returning true only means Windows accepted the request, not
+            // that the target has actually finished becoming foreground yet — sending input
+            // before that settles is a real race. It either silently drops the synthetic Ctrl+V,
+            // or lets a stray keystroke the user is still physically releasing (e.g. the Enter
+            // that triggered this apply) land in the target instead of us. Poll for confirmation
+            // instead of guessing a fixed delay.
+            var deadline = Environment.TickCount64 + timeoutMs;
+            while (NativeMethods.GetForegroundWindow() != targetHwnd && Environment.TickCount64 < deadline)
+                Thread.Sleep(10);
         }
         finally
         {
@@ -41,7 +52,8 @@ public static class PasteSender
                 NativeMethods.AttachThreadInput(currentThreadId, targetThreadId, false);
         }
 
-        Thread.Sleep(delayMs);
+        if (NativeMethods.GetForegroundWindow() != targetHwnd)
+            return PasteResult.FocusTimeout;
 
         SendCtrlV();
         return PasteResult.Sent;
@@ -98,6 +110,9 @@ public static class PasteSender
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool BringWindowToTop(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetForegroundWindow();
 
         [DllImport("user32.dll", SetLastError = true)]
         public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);

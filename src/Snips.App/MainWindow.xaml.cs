@@ -24,6 +24,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly ForegroundWindowTracker _foregroundTracker;
     private List<Snippet> _allSnippets = [];
     private Dictionary<string, string> _shortcutLabelsBySnippetId = [];
+    private string? _userEmail;
     private bool _isExiting;
 
     public MainWindow(SnipsDatabase database, ForegroundWindowTracker foregroundTracker)
@@ -52,6 +53,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         // from an earlier test is exactly how surprises like this happen.
         CopyCheckBox.IsChecked = true;
         PasteCheckBox.IsChecked = false;
+        KeepOpenCheckBox.IsChecked = false;
         await RefreshListAsync();
         SearchBox.Focus();
     }
@@ -80,6 +82,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _allSnippets = (await _database.Snippets.ListAsync()).ToList();
         _shortcutLabelsBySnippetId = (await _database.Shortcuts.ListAllAsync())
             .ToDictionary(s => s.SnippetId, s => HotkeyFormatting.Format(s.Modifiers, s.VirtualKey));
+        _userEmail = await _database.Settings.GetAsync("UserEmail");
         ApplyFilter();
         RefreshTrayMenu();
     }
@@ -176,7 +179,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         switch (e.Key)
         {
             case Key.Enter:
-                _ = ApplySelectedAsync(keepOpen: Keyboard.Modifiers.HasFlag(ModifierKeys.Control));
+                _ = ApplySelectedAsync(keepOpen: KeepOpenCheckBox.IsChecked == true || Keyboard.Modifiers.HasFlag(ModifierKeys.Control));
                 e.Handled = true;
                 break;
             case Key.Escape:
@@ -211,9 +214,52 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ResultsList.ScrollIntoView(ResultsList.SelectedItem);
     }
 
-    private void ResultsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    /// <summary>
+    /// Shows a live, resolved preview (not the raw {{...}} template — Roland expected the
+    /// resolved value) and, if "Copy to clipboard" is checked, keeps the clipboard in sync with
+    /// the current selection so it's ready to paste without pressing Enter first (Roland's other
+    /// direct ask). Deliberately non-interactive and side-effect-free: Prompt is null (arrow-key
+    /// browsing must never pop a dialog) and Counters is null (browsing must never burn through
+    /// a persistent counter — only a real Enter/apply should do that).
+    /// </summary>
+    private async void ResultsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        PreviewBox.Text = GetSelectedSnippet()?.PlainText ?? string.Empty;
+        var snippet = GetSelectedSnippet();
+        if (snippet is null)
+        {
+            PreviewBox.Text = string.Empty;
+            return;
+        }
+
+        var context = BuildTemplateContext(snippet, ClipboardTextGuard.TryGetCurrentText(), prompt: null, includeCounters: false);
+        var rendered = await TemplateEngine.RenderAsync(snippet.PlainText, context);
+        PreviewBox.Text = rendered.Text;
+
+        if (CopyCheckBox.IsChecked == true)
+            ClipboardTextGuard.SetText(rendered.Text);
+    }
+
+    private TemplateContext BuildTemplateContext(Snippet snippet, string? clipboardText, IInteractivePrompt? prompt, bool includeCounters)
+    {
+        var target = _foregroundTracker.LastExternalForegroundWindow;
+
+        return new TemplateContext
+        {
+            Now = DateTimeOffset.Now,
+            Culture = CultureInfo.CurrentCulture,
+            SystemInfo = EnvironmentSystemInfoProvider.Instance,
+            SnippetName = snippet.Name,
+            SnippetId = snippet.Id,
+            SnippetDescription = snippet.Description,
+            UseCount = snippet.UseCount,
+            UserEmail = _userEmail,
+            ClipboardText = clipboardText,
+            ActiveWindowTitle = target is { } titleTarget ? ActiveWindowInfo.GetWindowTitle(titleTarget) : null,
+            ActiveAppName = target is { } appTarget ? ActiveWindowInfo.GetProcessName(appTarget) : null,
+            IdGenerator = _database.IdGenerator,
+            Counters = includeCounters ? _database.Counters : null,
+            Prompt = prompt,
+        };
     }
 
     private void ResultsList_KeyDown(object sender, KeyEventArgs e)
@@ -248,8 +294,26 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var paste = PasteCheckBox.IsChecked == true;
 
         var applied = await ApplySnippetAsync(snippet, copy, paste, statusTarget: StatusText);
-        if (applied && !keepOpen)
+        if (!applied)
+            return;
+
+        if (keepOpen)
+        {
+            // ApplySnippetAsync may have hidden us to hand focus to the paste target — bring
+            // ourselves back rather than leaving the user staring at the other app. Show()+
+            // Activate() only, not ShowAndFocus(): that would reset the search text and
+            // selection, which defeats the point of "keep it open" for rapid-firing several
+            // snippets in a row.
+            if (!IsVisible)
+            {
+                Show();
+                Activate();
+            }
+        }
+        else
+        {
             Hide();
+        }
     }
 
     /// <summary>
@@ -264,35 +328,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         // Fetched once, before anything below writes to the clipboard: this is both the
         // {{clipboard}} variable's value and the backup to restore after a transient paste.
         var originalClipboard = ClipboardTextGuard.TryGetCurrentText();
-
-        // No Settings view exists yet (Phase 6) to let the user type this in, so it will
-        // resolve empty until then — reading it now means the plumbing is already correct
-        // for whenever that screen exists, rather than needing an engine change later.
-        var userEmail = await _database.Settings.GetAsync("UserEmail");
-
-        var context = new TemplateContext
-        {
-            Now = DateTimeOffset.Now,
-            Culture = CultureInfo.CurrentCulture,
-            SystemInfo = EnvironmentSystemInfoProvider.Instance,
-            SnippetName = snippet.Name,
-            SnippetId = snippet.Id,
-            SnippetDescription = snippet.Description,
-            UseCount = snippet.UseCount,
-            UserEmail = userEmail,
-            ClipboardText = originalClipboard,
-            ActiveWindowTitle = target is { } titleTarget ? ActiveWindowInfo.GetWindowTitle(titleTarget) : null,
-            ActiveAppName = target is { } appTarget ? ActiveWindowInfo.GetProcessName(appTarget) : null,
-            IdGenerator = _database.IdGenerator,
-            Counters = _database.Counters,
-            Prompt = new WpfInteractivePrompt(this),
-        };
+        var context = BuildTemplateContext(snippet, originalClipboard, new WpfInteractivePrompt(this), includeCounters: true);
 
         var rendered = await TemplateEngine.RenderAsync(snippet.PlainText, context);
         if (rendered.Cancelled)
         {
-            if (statusTarget is not null)
-                statusTarget.Text = "Cancelled.";
+            SetStatus(statusTarget, "Cancelled.");
             return false;
         }
 
@@ -322,12 +363,20 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             }
             else
             {
-                var result = PasteSender.TrySendPaste(target.Value, delayMs: 60);
+                // Hide before handing focus to the target: staying visible (even unfocused)
+                // can interfere with SetForegroundWindow actually succeeding, and was a likely
+                // cause of a physical Enter keystroke leaking into the target as a stray newline.
+                if (IsVisible)
+                    Hide();
+
+                var result = PasteSender.TrySendPaste(target.Value, timeoutMs: 500);
                 SetStatus(statusTarget, result switch
                 {
                     PasteResult.Sent => "Pasted.",
                     PasteResult.AccessDenied =>
                         "Target app is running as administrator — copied to clipboard, press Ctrl+V yourself.",
+                    PasteResult.FocusTimeout =>
+                        "Couldn't bring the target app to the front in time — copied to clipboard, press Ctrl+V yourself.",
                     PasteResult.TargetGone => "Target window is gone — copied to clipboard instead.",
                     _ => string.Empty,
                 });
@@ -480,6 +529,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private void ShowMenuItem_Click(object sender, RoutedEventArgs e) => ShowAndFocus();
 
     private void TrayIcon_TrayLeftMouseDoubleClick(object sender, RoutedEventArgs e) => ShowAndFocus();
+
+    /// <summary>Single left-click also shows the window — matches how most Windows tray
+    /// utilities behave, and Roland specifically didn't know double-click already worked.</summary>
+    private void TrayIcon_TrayLeftMouseUp(object sender, RoutedEventArgs e) => ShowAndFocus();
 
     private void QuitMenuItem_Click(object sender, RoutedEventArgs e) => RequestExit();
 

@@ -69,12 +69,17 @@ public partial class App : Application
                 "icon instead until a rebindable Settings view exists.",
                 "Snips", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        else if (boundLabel != HotkeyCandidates[0].Label)
+        else if (boundLabel != HotkeyCandidates[0].Label && await _database.Settings.GetAsync("HotkeyFallbackNoticeShown") is null)
         {
+            // Shown once ever, not on every launch — this was genuinely nagging Roland during
+            // repeated dev-cycle relaunches and reads as "the app is broken" rather than as the
+            // one-time heads-up it's meant to be.
             MessageBox.Show(
                 $"Ctrl+Alt+Space is already in use by another application, so Snips bound " +
-                $"{boundLabel} instead. Press {boundLabel} to open the picker.",
+                $"{boundLabel} instead. Press {boundLabel} to open the picker. " +
+                "(This notice won't be shown again.)",
                 "Snips", MessageBoxButton.OK, MessageBoxImage.Information);
+            await _database.Settings.SetAsync("HotkeyFallbackNoticeShown", "1");
         }
 
         await RegisterPerSnippetHotkeysAsync();

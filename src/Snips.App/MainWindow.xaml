@@ -26,7 +26,8 @@
         <tb:TaskbarIcon x:Name="TrayIcon"
                          IconSource="Resources/tray.ico"
                          ToolTipText="Snips"
-                         TrayLeftMouseDoubleClick="TrayIcon_TrayLeftMouseDoubleClick">
+                         TrayLeftMouseDoubleClick="TrayIcon_TrayLeftMouseDoubleClick"
+                         TrayLeftMouseUp="TrayIcon_TrayLeftMouseUp">
             <tb:TaskbarIcon.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="Show Snips" Click="ShowMenuItem_Click"/>
@@ -151,7 +152,9 @@
                 <StackPanel Grid.Row="4">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                         <CheckBox x:Name="CopyCheckBox" Content="Copy to clipboard" IsChecked="True" Margin="0,0,16,0"/>
-                        <CheckBox x:Name="PasteCheckBox" Content="Paste into active app" IsChecked="False"/>
+                        <CheckBox x:Name="PasteCheckBox" Content="Paste into active app" IsChecked="False" Margin="0,0,16,0"/>
+                        <CheckBox x:Name="KeepOpenCheckBox" Content="Keep window open" IsChecked="False"
+                                  ToolTip="Same as holding Ctrl while pressing Enter"/>
                     </StackPanel>
                     <TextBlock x:Name="StatusText" Style="{StaticResource CaptionTextBlockStyle}"
                                Foreground="{StaticResource TextSecondary}"
