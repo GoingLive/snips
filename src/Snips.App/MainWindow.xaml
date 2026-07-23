@@ -54,13 +54,18 @@
             </Grid.RowDefinitions>
 
             <!-- Draggable strip — FluentWindow suppresses the native title bar, so this is what
-                 makes the window movable. The title itself now renders directly in the bar
-                 (FontSize/FontWeight on ui:TitleBar flow straight into its own title text) —
-                 reclaims the vertical space the old separate heading row used to take, per
-                 Roland's request. ShowHelp adds a built-in "?" caption button next to
-                 minimize/close; HelpClicked opens the online user guide. -->
-            <ui:TitleBar Grid.Row="0" Title="Snips" FontSize="16" FontWeight="Bold"
-                         ShowMaximize="False" ShowHelp="True" HelpClicked="TitleBar_HelpClicked"/>
+                 makes the window movable. Using Header (not the Title shorthand property) is
+                 deliberate: checked against WPF-UI's TitleBar.xaml source, the Title-driven text
+                 renders with NO left inset at all — only the (empty, icon-less) column next to it
+                 gets the 16px Padding-driven margin. Title rendered flush against the window's
+                 left edge, not aligned with the subtitle/content below it. An explicit Header
+                 with its own 16px margin guarantees it lines up with everything else instead of
+                 relying on a template quirk that doesn't actually apply to it. -->
+            <ui:TitleBar Grid.Row="0" ShowMaximize="False" ShowHelp="True" HelpClicked="TitleBar_HelpClicked">
+                <ui:TitleBar.Header>
+                    <TextBlock Text="Snips" FontSize="16" FontWeight="Bold" Margin="16,0,0,0" VerticalAlignment="Center"/>
+                </ui:TitleBar.Header>
+            </ui:TitleBar>
 
             <TextBlock Grid.Row="1" Text="The tool to define and paste snippets at your fingertips."
                        Style="{StaticResource CaptionTextBlockStyle}" Foreground="{StaticResource TextSecondary}"
@@ -181,13 +186,19 @@
                 <StackPanel Grid.Row="4" Margin="0,8,0,0">
                     <!-- Roland's call: not worth a third checkbox (three didn't fit the window's
                          width on one row anyway, so it was likely being silently clipped) —
-                         Ctrl+Enter covers the "keep it open" case for anyone who wants it. -->
+                         Ctrl+Enter covers the "keep it open" case for anyone who wants it.
+                         ToolTips explain both checkboxes inline instead of requiring a trip to
+                         the online help for something this central to using the app. -->
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                         <CheckBox x:Name="CopyCheckBox" Content="Copy to clipboard" IsChecked="True" Margin="0,0,16,0"
-                                  Checked="CopyCheckBox_Changed" Unchecked="CopyCheckBox_Changed"/>
+                                  Checked="CopyCheckBox_Changed" Unchecked="CopyCheckBox_Changed"
+                                  ToolTip="Puts the resolved snippet text on your clipboard, ready to paste yourself with Ctrl+V."/>
                         <CheckBox x:Name="PasteCheckBox" Content="Paste into active app" IsChecked="False"
-                                  Checked="PasteCheckBox_Changed" Unchecked="PasteCheckBox_Changed"/>
+                                  Checked="PasteCheckBox_Changed" Unchecked="PasteCheckBox_Changed"
+                                  ToolTip="Types the text directly into whichever window was active before you opened Snips. Click into that window first, THEN open Snips — it only remembers whatever was active right before it opened."/>
                     </StackPanel>
+                    <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Foreground="{StaticResource TextSecondary}"
+                               Text="Tip: Ctrl+Enter applies a snippet without closing this window." Margin="0,0,0,4"/>
                     <TextBlock x:Name="StatusText" Style="{StaticResource CaptionTextBlockStyle}"
                                Foreground="{StaticResource TextSecondary}"
                                TextWrapping="Wrap" Margin="0,4,0,0"/>
