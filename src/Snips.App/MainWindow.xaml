@@ -85,7 +85,8 @@
                          SelectionChanged="ResultsList_SelectionChanged"
                          MouseDoubleClick="ResultsList_MouseDoubleClick"
                          KeyDown="ResultsList_KeyDown"
-                         PreviewMouseRightButtonDown="ResultsList_PreviewMouseRightButtonDown">
+                         PreviewMouseRightButtonDown="ResultsList_PreviewMouseRightButtonDown"
+                         PreviewMouseLeftButtonDown="ResultsList_PreviewMouseLeftButtonDown">
                     <ListBox.ContextMenu>
                         <ContextMenu>
                             <MenuItem Header="New" Click="NewMenuItem_Click"/>

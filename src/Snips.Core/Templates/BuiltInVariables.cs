@@ -40,8 +40,8 @@ internal static partial class BuiltInVariables
             // system locale — for correspondence meant to read unambiguously in English no
             // matter who opens it, as opposed to {{localdate}} which follows the user's locale.
             case "intldate": return now.ToString("d MMMM yyyy", CultureInfo.GetCultureInfo("en-US"));
-            case "now": return now.ToString(args.Count > 0 ? args[0] : "yyyy-MM-dd HH:mm:ss", culture);
-            case "utcnow": return now.ToUniversalTime().ToString(args.Count > 0 ? args[0] : "yyyy-MM-dd HH:mm:ss", culture);
+            case "now": return now.ToString(args.Count > 0 ? RejoinFormat(args) : "yyyy-MM-dd HH:mm:ss", culture);
+            case "utcnow": return now.ToUniversalTime().ToString(args.Count > 0 ? RejoinFormat(args) : "yyyy-MM-dd HH:mm:ss", culture);
             case "timestamp": return now.ToUnixTimeSeconds().ToString(culture);
             case "timestampms": return now.ToUnixTimeMilliseconds().ToString(culture);
             case "weekday": return now.ToString("dddd", culture);
@@ -95,11 +95,13 @@ internal static partial class BuiltInVariables
     }
 
     /// <summary>tomorrow/yesterday take a single optional format arg — their offset is fixed,
-    /// not user-supplied, so there's no offset-vs-format ambiguity to resolve.</summary>
+    /// not user-supplied, so there's no offset-vs-format ambiguity to resolve. The format still
+    /// needs RejoinFormat: a format like "HH:mm" arrives from the parser already shredded into
+    /// separate args by its own colon (see RejoinFormat's doc comment).</summary>
     private static string FormatWithOffset(
         DateTimeOffset baseTime, IReadOnlyList<string> args, int offsetIndex, int formatIndex, string defaultFormat, CultureInfo culture)
     {
-        var format = args.Count > formatIndex ? args[formatIndex] : defaultFormat;
+        var format = args.Count > formatIndex ? RejoinFormat(args) : defaultFormat;
         return baseTime.ToString(format, culture);
     }
 
@@ -113,24 +115,31 @@ internal static partial class BuiltInVariables
     /// of the requested one.</summary>
     private static string FormatDateOrTime(DateTimeOffset now, IReadOnlyList<string> args, string defaultFormat, CultureInfo culture)
     {
-        string? offset = null;
-        var format = defaultFormat;
+        if (args.Count == 0)
+            return now.ToString(defaultFormat, culture);
 
-        if (args.Count == 1)
+        // Classify by the FIRST arg's shape, not by how many pieces the parser handed back —
+        // a colon inside the format (e.g. "HH:mm") makes args.Count vary independently of
+        // whether an offset was actually given, so counting args can't tell offset-only from
+        // format-only. Only args[0] can possibly be an offset; if it isn't, every arg belongs
+        // to the format (see RejoinFormat).
+        if (OffsetPattern().IsMatch(args[0]))
         {
-            if (OffsetPattern().IsMatch(args[0]))
-                offset = args[0];
-            else
-                format = args[0];
-        }
-        else if (args.Count >= 2)
-        {
-            offset = args[0];
-            format = args[1];
+            var format = args.Count > 1 ? RejoinFormat(args.Skip(1).ToList()) : defaultFormat;
+            return ApplyOffset(now, args[0]).ToString(format, culture);
         }
 
-        return ApplyOffset(now, offset).ToString(format, culture);
+        return now.ToString(RejoinFormat(args), culture);
     }
+
+    /// <summary>A format string containing its own ':' (e.g. "HH:mm", extremely common for
+    /// time) gets split apart by TemplateParser before a variable ever sees it, since ':' is
+    /// also the placeholder's own argument separator — {{now:HH:mm:ss}} arrives here as three
+    /// separate args ["HH","mm","ss"], not one. There's no way to tell the parser apart from
+    /// here, so instead of asking users to avoid ':' in formats (unworkable — it's the standard
+    /// time separator), every remaining positional arg after the offset is rejoined with ':'
+    /// to reconstruct the original format string.</summary>
+    private static string RejoinFormat(IReadOnlyList<string> args) => string.Join(':', args);
 
     [GeneratedRegex(@"^([+-]?\d+)(min|s|h|d|w|m|y)$", RegexOptions.IgnoreCase)]
     private static partial Regex OffsetPattern();

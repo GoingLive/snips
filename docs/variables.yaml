@@ -21,6 +21,18 @@ grammar_note: >
   never share meaning within one placeholder — {{input:Name:Default|upper}} prompts
   for Name (defaulting to "Default") and then uppercases whatever was typed.
 
+format_convention: >
+  Rule (2026-07-23, to prevent a growing zoo of one-off variable names): a custom
+  date/time shape is ALWAYS written as a .NET format string passed as an argument to
+  {{date}}, {{time}}, {{datetime}}, {{now}}, or {{utcnow}} — never as a new dedicated
+  variable name. Example: an ISO-ish date with minute precision is
+  {{datetime:yyyy-MM-dd HH:mm}}, not a new {{datetime-short}} variable. A named preset
+  ({{localdate}}, {{intldate}}, {{iso}}, ...) only gets added when the shape is common
+  and reusable enough to be worth a name of its own — everything else uses the format
+  argument, so there's exactly one grammar to learn instead of one per request. A
+  format may freely contain ':' (e.g. "HH:mm:ss") — it's reconstructed correctly even
+  though ':' is also the placeholder's own argument separator.
+
 date_format_warning: >
   .NET's date format letters are case-SENSITIVE and do not match Excel/PHP-style
   conventions. In particular: 'M' (uppercase) is month, 'm' (lowercase) is MINUTES —

@@ -90,6 +90,33 @@ public class TemplateEngineTests
     }
 
     [Fact]
+    public async Task Datetime_WithACustomFormatArg_NeedsNoDedicatedVariable()
+    {
+        // The generic FORMAT argument (shared by date/time/datetime/now/utcnow) is the one
+        // grammar for "I want a specific shape" — an ISO-ish date with minute precision doesn't
+        // need its own named variable, it's just a format string.
+        var result = await TemplateEngine.RenderAsync("{{datetime:yyyy-MM-dd HH:mm}}", MakeContext());
+        Assert.Equal("2026-07-21 11:46", result.Text);
+    }
+
+    [Fact]
+    public async Task FormatArgContainingColons_IsReconstructedNotShredded()
+    {
+        // Regression: TemplateParser splits a placeholder's args on ':' — the same character
+        // that's the standard time separator — so "{{now:HH:mm:ss}}" used to arrive at the
+        // resolver as three separate args ["HH","mm","ss"] and only the first ("HH") was used.
+        var result = await TemplateEngine.RenderAsync("{{now:HH:mm:ss}}", MakeContext());
+        Assert.Equal("11:46:03", result.Text);
+    }
+
+    [Fact]
+    public async Task FormatArgWithColons_CombinedWithAnExplicitOffset_StillWorks()
+    {
+        var result = await TemplateEngine.RenderAsync("{{date:+1d:yyyy-MM-dd HH:mm}}", MakeContext());
+        Assert.Equal("2026-07-22 11:46", result.Text);
+    }
+
+    [Fact]
     public async Task Tomorrow_IsOneDayAhead()
     {
         var result = await TemplateEngine.RenderAsync("{{tomorrow}}", MakeContext());

@@ -230,6 +230,20 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ResultsList.ScrollIntoView(ResultsList.SelectedItem);
     }
 
+    private async void ResultsList_SelectionChanged(object sender, SelectionChangedEventArgs e) => await RefreshPreviewAsync();
+
+    /// <summary>WPF's SelectionChanged doesn't fire when the user re-clicks the row that's
+    /// already selected — but time-based variables (e.g. {{now}}) go stale sitting in the
+    /// preview, and Roland expects a re-click to refresh them just like a fresh selection
+    /// would. PreviewMouseLeftButtonDown fires on every click regardless of selection state,
+    /// so this catches exactly the "already selected" case; a real selection change is still
+    /// handled by ResultsList_SelectionChanged above (this would otherwise double-render).</summary>
+    private void ResultsList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (ItemsControl.ContainerFromElement(ResultsList, (DependencyObject)e.OriginalSource) is ListBoxItem { IsSelected: true })
+            _ = RefreshPreviewAsync();
+    }
+
     /// <summary>
     /// Shows a live, resolved preview (not the raw {{...}} template — Roland expected the
     /// resolved value) and, if "Copy to clipboard" is checked, keeps the clipboard in sync with
@@ -238,7 +252,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     /// browsing must never pop a dialog) and Counters is null (browsing must never burn through
     /// a persistent counter — only a real Enter/apply should do that).
     /// </summary>
-    private async void ResultsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private async Task RefreshPreviewAsync()
     {
         var snippet = GetSelectedSnippet();
         if (snippet is null)
