@@ -80,7 +80,7 @@
                 </Grid>
 
                 <!-- Results -->
-                <ListBox x:Name="ResultsList" Grid.Row="1" Margin="0,0,0,8" Padding="0,0,6,0"
+                <ListBox x:Name="ResultsList" Grid.Row="1" Margin="0,0,0,8" Padding="0,0,18,0"
                          Background="Transparent" BorderThickness="0"
                          SelectionChanged="ResultsList_SelectionChanged"
                          MouseDoubleClick="ResultsList_MouseDoubleClick"
@@ -142,8 +142,12 @@
 
                 <TextBlock Grid.Row="2" Text="Preview" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,4"/>
 
-                <!-- Preview / result field -->
-                <TextBox x:Name="PreviewBox" Grid.Row="3" Margin="0,0,0,8"
+                <!-- Preview / result field. Right padding (18px, matching ResultsList below)
+                     reserves room so wrapped text never runs under the vertical scrollbar's
+                     track — WPF-UI's Fluent scrollbar floats over the content edge rather than
+                     claiming its own column, which is what made text look "crossed" by the
+                     thumb before this had no padding reserved for it at all. -->
+                <TextBox x:Name="PreviewBox" Grid.Row="3" Margin="0,0,0,8" Padding="8,6,18,6"
                          IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
                          VerticalScrollBarVisibility="Auto"
                          Background="White"/>

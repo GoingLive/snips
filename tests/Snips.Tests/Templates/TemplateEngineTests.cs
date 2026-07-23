@@ -57,6 +57,39 @@ public class TemplateEngineTests
     }
 
     [Fact]
+    public async Task Date_WithFormatOnlyArg_IsNotMisreadAsAnOffset()
+    {
+        // Regression: a lone format arg used to be assumed to be the offset (position 0),
+        // silently fail to match the offset grammar, and fall back to the untouched default
+        // format — so {{date:dd.MM.yyyy}} rendered as "2026-07-21" instead of "21.07.2026".
+        var result = await TemplateEngine.RenderAsync("{{date:dd.MM.yyyy}}", MakeContext());
+        Assert.Equal("21.07.2026", result.Text);
+    }
+
+    [Fact]
+    public async Task Date_WithOffsetOnlyArg_StillAppliesTheOffset()
+    {
+        var result = await TemplateEngine.RenderAsync("{{date:+7d}}", MakeContext());
+        Assert.Equal("2026-07-28", result.Text);
+    }
+
+    [Fact]
+    public async Task LocalDateAndTime_UseTheContextCulturesPatterns()
+    {
+        // MakeContext doesn't set Culture, so TemplateContext's default (InvariantCulture) applies.
+        var result = await TemplateEngine.RenderAsync(
+            "{{localdate}}|{{localtime}}|{{locallongdate}}|{{locallongtime}}", MakeContext());
+        Assert.Equal("07/21/2026|11:46|Tuesday, 21 July 2026|11:46:03", result.Text);
+    }
+
+    [Fact]
+    public async Task IntlDate_IsSpelledOutInEnglishRegardlessOfContextCulture()
+    {
+        var result = await TemplateEngine.RenderAsync("{{intldate}}", MakeContext());
+        Assert.Equal("21 July 2026", result.Text);
+    }
+
+    [Fact]
     public async Task Tomorrow_IsOneDayAhead()
     {
         var result = await TemplateEngine.RenderAsync("{{tomorrow}}", MakeContext());

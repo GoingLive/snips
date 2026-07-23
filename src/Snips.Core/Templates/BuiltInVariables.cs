@@ -28,10 +28,18 @@ internal static partial class BuiltInVariables
             case "hour": return now.ToString("hh", culture);
             case "minute": return now.ToString("mm", culture);
             case "second": return now.ToString("ss", culture);
-            case "date": return FormatWithOffset(now, args, 0, 1, "yyyy-MM-dd", culture);
-            case "time": return FormatWithOffset(now, args, 0, 1, "HH:mm:ss", culture);
-            case "datetime": return FormatWithOffset(now, args, 0, 1, "yyyy-MM-dd HH:mm:ss", culture);
+            case "date": return FormatDateOrTime(now, args, "yyyy-MM-dd", culture);
+            case "time": return FormatDateOrTime(now, args, "HH:mm:ss", culture);
+            case "datetime": return FormatDateOrTime(now, args, "yyyy-MM-dd HH:mm:ss", culture);
             case "iso": return now.ToString("yyyy-MM-ddTHH:mm:sszzz", culture);
+            case "localdate": return now.ToString(culture.DateTimeFormat.ShortDatePattern, culture);
+            case "localtime": return now.ToString(culture.DateTimeFormat.ShortTimePattern, culture);
+            case "locallongdate": return now.ToString(culture.DateTimeFormat.LongDatePattern, culture);
+            case "locallongtime": return now.ToString(culture.DateTimeFormat.LongTimePattern, culture);
+            // Spelled-out month, culture-independent (e.g. "10 April 2026") regardless of the
+            // system locale — for correspondence meant to read unambiguously in English no
+            // matter who opens it, as opposed to {{localdate}} which follows the user's locale.
+            case "intldate": return now.ToString("d MMMM yyyy", CultureInfo.GetCultureInfo("en-US"));
             case "now": return now.ToString(args.Count > 0 ? args[0] : "yyyy-MM-dd HH:mm:ss", culture);
             case "utcnow": return now.ToUniversalTime().ToString(args.Count > 0 ? args[0] : "yyyy-MM-dd HH:mm:ss", culture);
             case "timestamp": return now.ToUnixTimeSeconds().ToString(culture);
@@ -86,16 +94,42 @@ internal static partial class BuiltInVariables
         }
     }
 
-    /// <summary>date/time/datetime/tomorrow/yesterday share this shape: an optional offset arg,
-    /// an optional format arg (positions given by offsetIndex/formatIndex since tomorrow/yesterday
-    /// have no offset arg of their own — their offset is fixed — but do take a format).</summary>
+    /// <summary>tomorrow/yesterday take a single optional format arg — their offset is fixed,
+    /// not user-supplied, so there's no offset-vs-format ambiguity to resolve.</summary>
     private static string FormatWithOffset(
         DateTimeOffset baseTime, IReadOnlyList<string> args, int offsetIndex, int formatIndex, string defaultFormat, CultureInfo culture)
     {
-        var offset = args.Count > offsetIndex ? args[offsetIndex] : null;
         var format = args.Count > formatIndex ? args[formatIndex] : defaultFormat;
-        var adjusted = offsetIndex == formatIndex ? baseTime : ApplyOffset(baseTime, offset);
-        return adjusted.ToString(format, culture);
+        return baseTime.ToString(format, culture);
+    }
+
+    /// <summary>date/time/datetime take an optional offset AND an optional format, in either
+    /// order of presence: {{date}}, {{date:dd.MM.yyyy}} (format only — by far the common case),
+    /// {{date:+7d}} (offset only), or {{date:+7d:dd.MM.yyyy}} (both). A single arg is ambiguous
+    /// between "offset" and "format" by position alone, so it's classified by shape instead: it's
+    /// an offset only if it matches the offset grammar (e.g. "+7d"), otherwise it's a format.
+    /// Previously a single format-only arg was always misread as a (non-matching, silently
+    /// ignored) offset, so {{date:dd.MM.yyyy}} rendered as the untouched default format instead
+    /// of the requested one.</summary>
+    private static string FormatDateOrTime(DateTimeOffset now, IReadOnlyList<string> args, string defaultFormat, CultureInfo culture)
+    {
+        string? offset = null;
+        var format = defaultFormat;
+
+        if (args.Count == 1)
+        {
+            if (OffsetPattern().IsMatch(args[0]))
+                offset = args[0];
+            else
+                format = args[0];
+        }
+        else if (args.Count >= 2)
+        {
+            offset = args[0];
+            format = args[1];
+        }
+
+        return ApplyOffset(now, offset).ToString(format, culture);
     }
 
     [GeneratedRegex(@"^([+-]?\d+)(min|s|h|d|w|m|y)$", RegexOptions.IgnoreCase)]

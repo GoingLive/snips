@@ -69,16 +69,41 @@ date_and_time:
     example: "03"
   - token: "{{date}}"
     example: "2026-07-22"
-    note: "default format yyyy-MM-dd. Optional args: {{date:OFFSET:FORMAT}}"
+    note: >
+      default format yyyy-MM-dd. A single arg is FORMAT if it doesn't look like an
+      offset, otherwise OFFSET: {{date:dd.MM.yyyy}} formats, {{date:+7d}} shifts using
+      the default format. Give both explicitly with {{date:OFFSET:FORMAT}}.
+  - token: "{{date:dd.MM.yyyy}}"
+    example: "22.07.2026"
+    note: "format only, no offset (fixed 2026-07-23 — previously misread as an offset and silently ignored, always falling back to yyyy-MM-dd)"
   - token: "{{date:+7d:dd.MM.yyyy}}"
     example: "29.07.2026"
     note: "date one week from now, custom format. Offset units: s, min, h, d, w, m, y (e.g. -3d, +1y)"
   - token: "{{time}}"
     example: "22:48:03"
-    note: "default format HH:mm:ss (24-hour). Optional args: {{time:OFFSET:FORMAT}}"
+    note: "default format HH:mm:ss (24-hour). Same offset-or-format single-arg rule as {{date}}. Explicit form: {{time:OFFSET:FORMAT}}"
   - token: "{{datetime}}"
     example: "2026-07-22 22:48:03"
-    note: "optional args: {{datetime:OFFSET:FORMAT}}"
+    note: "same offset-or-format single-arg rule as {{date}}. Explicit form: {{datetime:OFFSET:FORMAT}}"
+  - token: "{{localdate}}"
+    example: "22.07.2026 (de-CH) / 07/22/2026 (en-US)"
+    note: "short date in the current Windows display-language format — SPEC.md i18n proposal 2026-07-23"
+  - token: "{{localtime}}"
+    example: "22:48 (de-CH) / 10:48 PM (en-US)"
+    note: short time in the current Windows display-language format
+  - token: "{{locallongdate}}"
+    example: "Mittwoch, 22. Juli 2026 (de-CH) / Wednesday, July 22, 2026 (en-US)"
+    note: long date in the current Windows display-language format
+  - token: "{{locallongtime}}"
+    example: "22:48:03"
+    note: long time in the current Windows display-language format
+  - token: "{{intldate}}"
+    example: "22 July 2026"
+    note: >
+      spelled-out English date, always in this shape regardless of system locale —
+      for correspondence meant to read unambiguously in English no matter who opens
+      it. Use {{localdate}}/{{locallongdate}} instead if you want it to follow the
+      reader's own locale.
   - token: "{{iso}}"
     example: "2026-07-22T22:48:03+02:00"
   - token: "{{now:FORMAT}}"
