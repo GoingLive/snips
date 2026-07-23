@@ -41,4 +41,11 @@ public sealed class TemplateContext
     /// ExternalVariablesLoader and docs/variables.yaml. Checked as a fallback tier, after
     /// built-ins, before a placeholder is left as literal text.</summary>
     public IReadOnlyDictionary<string, string>? ExternalVariables { get; init; }
+
+    /// <summary>LocalName -> MasterKey, for the current language — see
+    /// docs/language-pack-brief.md. A name unresolved as a built-in is checked here for a
+    /// translated alias (e.g. German "heute" -> "date") and re-resolved as that master key
+    /// before falling through to ExternalVariables and then literal text. Always empty/null for
+    /// English, since English names ARE the master keys.</summary>
+    public IReadOnlyDictionary<string, string>? VariableNameTranslations { get; init; }
 }

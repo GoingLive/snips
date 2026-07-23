@@ -22,6 +22,7 @@ public sealed class SnipsDatabase : IAsyncDisposable
     public ISettingsStore Settings { get; }
     public ICounterStore Counters { get; }
     public IShortcutRepository Shortcuts { get; }
+    public IVariableTranslationRepository VariableTranslations { get; }
     public SnowflakeIdGenerator IdGenerator { get; }
 
     private SnipsDatabase(SqliteConnection connection, SnowflakeIdGenerator idGenerator)
@@ -32,6 +33,7 @@ public sealed class SnipsDatabase : IAsyncDisposable
         Snippets = new SqliteSnippetRepository(connection, idGenerator);
         Counters = new SqliteCounterStore(connection);
         Shortcuts = new SqliteShortcutRepository(connection, idGenerator);
+        VariableTranslations = new SqliteVariableTranslationRepository(connection, idGenerator);
     }
 
     public static async Task<SnipsDatabase> OpenAsync(string path, CancellationToken ct = default)

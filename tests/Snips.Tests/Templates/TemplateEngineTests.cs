@@ -10,7 +10,8 @@ public class TemplateEngineTests
         string snippetName = "Test Snippet", string snippetDescription = "", int useCount = 0,
         string? clipboard = null, string? activeWindow = null, string? activeApp = null,
         ICounterStore? counters = null, IInteractivePrompt? prompt = null,
-        IReadOnlyDictionary<string, string>? externalVariables = null, string? appVersion = null) => new()
+        IReadOnlyDictionary<string, string>? externalVariables = null, string? appVersion = null,
+        IReadOnlyDictionary<string, string>? variableNameTranslations = null) => new()
     {
         Now = FixedNow,
         SystemInfo = new FakeSystemInfoProvider(),
@@ -24,6 +25,7 @@ public class TemplateEngineTests
         Prompt = prompt,
         ExternalVariables = externalVariables,
         AppVersion = appVersion,
+        VariableNameTranslations = variableNameTranslations,
     };
 
     // --- §7.1 Date and time -------------------------------------------------------------
@@ -289,6 +291,68 @@ public class TemplateEngineTests
         var result = await TemplateEngine.RenderAsync("{{companyname}}", MakeContext(externalVariables: null));
 
         Assert.Equal("{{companyname}}", result.Text);
+    }
+
+    // --- Variable name translation (docs/language-pack-brief.md) ------------------------------
+
+    [Fact]
+    public async Task TranslatedName_ResolvesAsItsMasterKey()
+    {
+        var translations = new Dictionary<string, string> { ["heute"] = "date" };
+        var result = await TemplateEngine.RenderAsync("{{heute}}", MakeContext(variableNameTranslations: translations));
+
+        Assert.Equal("2026-07-21", result.Text);
+    }
+
+    [Fact]
+    public async Task TranslatedName_LookupIsCaseInsensitive()
+    {
+        var translations = new Dictionary<string, string> { ["Heute"] = "date" };
+        var result = await TemplateEngine.RenderAsync("{{heute}}", MakeContext(variableNameTranslations: translations));
+
+        Assert.Equal("2026-07-21", result.Text);
+    }
+
+    [Fact]
+    public async Task TranslatedName_StillAppliesArgsAndFilters()
+    {
+        var translations = new Dictionary<string, string> { ["heute"] = "date" };
+        var result = await TemplateEngine.RenderAsync("{{heute:dd.MM.yyyy|upper}}", MakeContext(variableNameTranslations: translations));
+
+        Assert.Equal("21.07.2026", result.Text); // no letters in this format to uppercase, but exercises both tiers together
+    }
+
+    [Fact]
+    public async Task BuiltInName_TakesPrecedenceOverATranslationOfTheSameName()
+    {
+        // A translation can't shadow a real built-in name — same precedence rule as external
+        // variables, for the same reason: {{date}} must always mean the same thing.
+        var translations = new Dictionary<string, string> { ["date"] = "user" };
+        var result = await TemplateEngine.RenderAsync("{{date}}", MakeContext(variableNameTranslations: translations));
+
+        Assert.Equal("2026-07-21", result.Text);
+    }
+
+    [Fact]
+    public async Task TranslatedName_FallsBackToExternalVariables_WhenMasterKeyIsNotABuiltIn()
+    {
+        // A translation whose MasterKey doesn't resolve (e.g. it points at a typo, or at a
+        // user-defined name only ExternalVariables knows about) shouldn't swallow the lookup —
+        // the original name still gets a chance at the next tier.
+        var translations = new Dictionary<string, string> { ["firma"] = "companyname" };
+        var external = new Dictionary<string, string> { ["firma"] = "Acme AG" };
+        var result = await TemplateEngine.RenderAsync(
+            "{{firma}}", MakeContext(variableNameTranslations: translations, externalVariables: external));
+
+        Assert.Equal("Acme AG", result.Text);
+    }
+
+    [Fact]
+    public async Task NoTranslationsConfigured_UnknownNameStillFallsBackToLiteral()
+    {
+        var result = await TemplateEngine.RenderAsync("{{heute}}", MakeContext(variableNameTranslations: null));
+
+        Assert.Equal("{{heute}}", result.Text);
     }
 
     [Fact]

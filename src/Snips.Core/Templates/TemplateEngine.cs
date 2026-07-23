@@ -108,6 +108,25 @@ public static class TemplateEngine
         if (builtIn is not null)
             return builtIn;
 
+        // A translated name (e.g. German "heute") is an alias FOR a master key ("date"), never
+        // an independent variable — re-resolve as the master key through the exact same built-in
+        // resolver rather than duplicating any offset/format/filter logic per language. See
+        // docs/language-pack-brief.md's "one master, many aliases" rule.
+        if (context.VariableNameTranslations is not null)
+        {
+            foreach (var (localName, masterKey) in context.VariableNameTranslations)
+            {
+                if (!string.Equals(localName, placeholder.Name, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var translated = await BuiltInVariables.TryResolveAsync(masterKey, placeholder.Args, context, ct);
+                if (translated is not null)
+                    return translated;
+
+                break;
+            }
+        }
+
         if (context.ExternalVariables is not null)
         {
             // Case-insensitive regardless of what comparer the caller's dictionary happens to

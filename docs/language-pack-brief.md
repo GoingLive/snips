@@ -1,8 +1,11 @@
 # Language packs — brief and definition
 
-Status: **proposed, not built.** This document defines what a "language pack" means for
-Snips and how it would work, so we have something concrete to agree on before any of it
-gets built. It condenses a longer discussion from 2026-07-23 into a single reference.
+Status: **Phase 1 shipped 2026-07-24.** Schema, engine lookup, a language picker in
+Settings, and a translation editor ("Settings → Manage translations…") are built and
+working. What's NOT done yet: any actual translation *content* (the tables ship empty —
+deliberately not guessing German/French/etc. wording; that's Roland's call to make or
+delegate to a translator, the editor is the tool for it) and Phases 2-4 below (app text
+translation, RTL layout, user-editable synonyms).
 
 ## What a language pack is
 
@@ -50,48 +53,59 @@ variable names and which UI strings are active. It has to be set before someone 
 typing snippets with translated variable names in them — otherwise `{{heute}}` would be
 meaningless until the setting is applied.
 
-## The data shape
+## The data shape (as built)
 
 ```
-Language
- ├─ Code (e.g. "de-CH")
- ├─ DisplayName (e.g. "Deutsch (Schweiz)")
+Language                               — src/Snips.Data/Migrations (schema v2)
+ ├─ Code (e.g. "de" — the fixed SupportedLanguages list, not full locale tags like "de-CH")
+ ├─ DisplayName (e.g. "Deutsch")
  └─ IsRightToLeft (for Arabic)
 
 VariableNameTranslation                — translates a variable's NAME only
- ├─ MasterKey       (the real, English, code-level name — "date", "localdate", ...)
+ ├─ MasterKey       (the real, English, code-level name — "date", "localdate", ...;
+ │                    the authoritative list is BuiltInVariableCatalog in Snips.Core)
  ├─ LanguageCode    (which language this alias belongs to)
  ├─ LocalName       (what the user types instead — "heute")
- └─ one LocalName can't mean two different MasterKeys in the same language
+ └─ one LocalName can't mean two different MasterKeys in the same language (unique index);
+    application logic (not the schema) keeps one MasterKey to one LocalName per language,
+    leaving room to relax that later if real demand for synonyms shows up
 
-UiStringTranslation                    — app text, unrelated to variables
- ├─ Key             (e.g. "Settings.Title")
- ├─ LanguageCode
- └─ Value
+UiStringTranslation                    — NOT YET BUILT (Phase 2). App text, unrelated to
+                                          variables: menu items, dialog titles, messages.
 
-Variable                               — user-defined constants (already exists, unused)
- ├─ Name            (can itself have translated aliases, same table as above)
+Variable                               — user-defined constants (schema exists, unused —
+ ├─ Name              still no UI to create one; a natural Phase 4 extension point)
  └─ Value
 
 Settings
- └─ "Language" = "de-CH"   — which language is currently active
+ └─ "Language" = "de"   — which language is currently active (MainWindow reads this and
+                           loads VariableNameTranslation rows for it into every render)
 ```
 
 A user's own custom synonym (say, they personally prefer typing `{{heutigesdatum}}`)
-uses this exact same mechanism — it's just a `VariableNameTranslation` row scoped to
-that person instead of one shipped with the app.
+uses this exact same mechanism — it's just a `VariableNameTranslation` row, editable the
+same way as any shipped translation.
+
+## The editor
+
+Settings → "Manage translations…" opens a grid: one row per `BuiltInVariableCatalog`
+entry (English name + a short meaning), a text box for the translated name, and a
+language dropdown. Untranslated rows are highlighted so coverage is visible at a glance —
+a caption at the bottom also states it as "N of M translated." Reads and writes the
+`VariableNameTranslation` table directly; there's no separate file format to keep in
+sync with the database.
 
 ## What ships first, if this gets greenlit
 
-1. **Schema + engine lookup + a language picker in Settings.** Variable name translation
-   and locale-aware formatting (`{{localdate}}` already exists and is a step in this
-   direction) work; app dialogs stay English.
-2. **App text translation.** Menus, dialogs, messages.
-3. **Right-to-left layout** for Arabic — a real layout change, not just text.
-4. **User-editable synonym dictionary**, reusing the Phase 1 mechanism.
+1. **Schema + engine lookup + a language picker in Settings + the editor above.** DONE.
+   Variable name translation and locale-aware formatting (`{{localdate}}`) work; app
+   dialogs stay English. Translation *content* is still empty — nobody's filled in
+   German/French/etc. words yet, on purpose.
+2. **App text translation.** Menus, dialogs, messages. Not started.
+3. **Right-to-left layout** for Arabic — a real layout change, not just text. Not started.
+4. **User-editable synonym dictionary**, reusing the Phase 1 mechanism (already works
+   mechanically today — anyone with access to the editor can add a personal synonym; what's
+   missing is a per-user-scoped version of it as opposed to the single shared table today).
 
 Target languages: English, German, French, Italian, Spanish, Russian, Chinese, Arabic —
 with user-defined additions/variations always possible on top, per the mechanism above.
-
-This is a multi-week scope once started, not a quick add-on — flagging that plainly so
-it gets scheduled deliberately rather than picked up piecemeal.

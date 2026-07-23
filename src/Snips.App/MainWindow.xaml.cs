@@ -30,6 +30,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private bool _isExiting;
     private bool _copyDefault = true;
     private bool _pasteDefault;
+    private string _languageCode = "en";
+    private IReadOnlyDictionary<string, string>? _variableNameTranslations;
 
     public MainWindow(SnipsDatabase database, ForegroundWindowTracker foregroundTracker, string externalVariablesPath)
     {
@@ -92,8 +94,26 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _userEmail = await _database.Settings.GetAsync("UserEmail");
         _copyDefault = await _database.Settings.GetAsync("CopyToClipboardDefault") != "0";
         _pasteDefault = await _database.Settings.GetAsync("PasteIntoActiveAppDefault") == "1";
+        await RefreshLanguageAsync();
         ApplyFilter();
         RefreshTrayMenu();
+    }
+
+    /// <summary>English has no translation rows to load — LocalName IS the master key already,
+    /// so _variableNameTranslations stays null and TemplateEngine's translation tier is a no-op,
+    /// same as before this feature existed.</summary>
+    private async Task RefreshLanguageAsync()
+    {
+        _languageCode = await _database.Settings.GetAsync("Language") ?? "en";
+
+        if (string.Equals(_languageCode, "en", StringComparison.OrdinalIgnoreCase))
+        {
+            _variableNameTranslations = null;
+            return;
+        }
+
+        var rows = await _database.VariableTranslations.ListTranslationsAsync(_languageCode);
+        _variableNameTranslations = rows.ToDictionary(t => t.LocalName, t => t.MasterKey, StringComparer.OrdinalIgnoreCase);
     }
 
     // Both handlers guard on _database being set: the XAML-declared IsChecked values on these
@@ -160,7 +180,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     /// Settings view.</summary>
     private async Task OpenSettingsAsync()
     {
-        var dialog = new SettingsWindow(_database.Settings, _userEmail) { Owner = this };
+        var dialog = new SettingsWindow(_database.Settings, _database.VariableTranslations, _userEmail, _languageCode) { Owner = this };
         if (dialog.ShowDialog() == true)
             await RefreshListAsync();
     }
@@ -319,6 +339,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             // for why: another process updating the file should be picked up on the very next
             // paste, and the file is expected to be tiny enough that this costs nothing real.
             ExternalVariables = ExternalVariablesLoader.TryLoad(_externalVariablesPath),
+            VariableNameTranslations = _variableNameTranslations,
         };
     }
 

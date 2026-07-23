@@ -16,7 +16,7 @@ public class SnipsDatabaseTests : IAsyncLifetime
         var expectedTables = new[]
         {
             "Snippet", "SnippetAsset", "Shortcut", "Variable", "Folder", "Tag", "SnippetTag",
-            "Counter", "Setting", "SchemaVersion",
+            "Counter", "Setting", "SchemaVersion", "Language", "VariableNameTranslation",
         };
 
         var actualTables = await GetTableNamesAsync(_fixture.DatabasePath);
@@ -25,10 +25,15 @@ public class SnipsDatabaseTests : IAsyncLifetime
             Assert.Contains(table, actualTables);
     }
 
+    // MigrationCatalog.All.Count as of this test: 2 (InitialSchema, LanguagePackPhase1).
+    // MigrationCatalog is internal with no InternalsVisibleTo, so this is a hand-kept number,
+    // not a reflected one — bump it whenever a migration is added.
+    private const int ExpectedMigrationCount = 2;
+
     [Fact]
     public async Task OpenAsync_RecordsSchemaVersionExactlyOnce()
     {
-        Assert.Equal(1, await CountSchemaVersionRowsAsync(_fixture.DatabasePath));
+        Assert.Equal(ExpectedMigrationCount, await CountSchemaVersionRowsAsync(_fixture.DatabasePath));
     }
 
     [Fact]
@@ -36,10 +41,10 @@ public class SnipsDatabaseTests : IAsyncLifetime
     {
         await using (var second = await SnipsDatabase.OpenAsync(_fixture.DatabasePath))
         {
-            // Opening again against the same file must not re-run migration 1.
+            // Opening again against the same file must not re-run any migration.
         }
 
-        Assert.Equal(1, await CountSchemaVersionRowsAsync(_fixture.DatabasePath));
+        Assert.Equal(ExpectedMigrationCount, await CountSchemaVersionRowsAsync(_fixture.DatabasePath));
     }
 
     [Fact]

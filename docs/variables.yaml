@@ -9,6 +9,11 @@
 # the "proposal" discussed with Roland on 2026-07-22 for where user-defined and
 # externally-supplied variables are headed.
 #
+# Every name below can ALSO be typed in a translated form, e.g. German {{heute}} for
+# {{date}} — set your language in Settings, then add translated names via Settings ->
+# "Manage translations...". See docs/language-pack-brief.md. Nothing is pre-translated;
+# the tables ship empty until someone fills them in through that editor.
+#
 # Syntax recap:
 #   {{name}}                 no arguments
 #   {{name:arg1:arg2}}       ':' separates the variable's own positional arguments

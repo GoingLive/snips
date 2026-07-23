@@ -73,5 +73,25 @@ internal static class MigrationCatalog
             CREATE TABLE Counter ( Name TEXT PRIMARY KEY COLLATE NOCASE, Value INTEGER NOT NULL DEFAULT 0 );
             CREATE TABLE Setting ( Key TEXT PRIMARY KEY, Value TEXT NOT NULL );
             """),
+
+        // Language-pack Phase 1 (docs/language-pack-brief.md): variable NAMES translate to a
+        // master English key; the engine and every filter/offset stay singular. English itself
+        // is not a row here — it IS the master key set, nothing to translate it to.
+        new Migration(2, "LanguagePackPhase1", """
+            CREATE TABLE Language (
+                Code           TEXT    PRIMARY KEY,
+                DisplayName    TEXT    NOT NULL,
+                IsRightToLeft  INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE VariableNameTranslation (
+                Id           TEXT NOT NULL PRIMARY KEY,
+                MasterKey    TEXT NOT NULL,
+                LanguageCode TEXT NOT NULL REFERENCES Language(Code) ON DELETE CASCADE,
+                LocalName    TEXT NOT NULL
+            );
+            CREATE UNIQUE INDEX IX_VarTranslation_LangLocalName ON VariableNameTranslation(LanguageCode, LocalName COLLATE NOCASE);
+            CREATE INDEX IX_VarTranslation_LangMaster ON VariableNameTranslation(LanguageCode, MasterKey);
+            """),
     ];
 }
