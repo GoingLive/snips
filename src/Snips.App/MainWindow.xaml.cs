@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Windows;
@@ -441,6 +442,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                     PasteResult.FocusTimeout =>
                         "Couldn't bring the target app to the front in time — copied to clipboard, press Ctrl+V yourself.",
                     PasteResult.TargetGone => "Target window is gone — copied to clipboard instead.",
+                    PasteResult.InputRejected =>
+                        "Windows rejected the paste keystrokes — copied to clipboard, press Ctrl+V yourself.",
                     _ => string.Empty,
                 });
 
@@ -616,6 +619,24 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (ClipboardTextGuard.SetText(BuildIdentifier.Value))
             StatusText.Text = "Build identifier copied to clipboard.";
+    }
+
+    /// <summary>Opens the user guide on GitHub in the default browser. No in-app/localized help
+    /// yet (SPEC.md i18n proposal covers that) — this is the concrete, working version for now,
+    /// same repo the app itself ships from rather than a separate hosted page to maintain.</summary>
+    private void TitleBar_HelpClicked(Wpf.Ui.Controls.TitleBar sender, RoutedEventArgs args)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("https://github.com/GoingLive/snips/blob/main/docs/user-guide.md")
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
+        {
+            SetStatus(StatusText, "Couldn't open the help page — no default browser found.");
+        }
     }
 
     /// <summary>

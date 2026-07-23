@@ -99,11 +99,20 @@
                 <ListBox Grid.Row="2" x:Name="VariableReferenceList" BorderThickness="1" BorderBrush="#E0A800"
                          Background="White" MouseDoubleClick="VariableReferenceList_MouseDoubleClick"
                          KeyDown="VariableReferenceList_KeyDown">
+                    <!-- WPF-UI's default ListBoxItem style pads every item 12px on all sides
+                         (checked against ListBoxItem.xaml source) — that, not the item template's
+                         own margin below, was the real source of the "lots of space between
+                         entries" Roland flagged. Cut here since it's the actual dominant term. -->
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="Padding" Value="6,2"/>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <!-- Right margin clears the vertical scrollbar for the same reason as
                                  MainWindow's results list — see that file's ItemTemplate comment. -->
-                            <StackPanel Margin="2,3,16,3">
+                            <StackPanel Margin="2,2,16,2">
                                 <TextBlock Text="{Binding Token}" FontFamily="Consolas" FontSize="11" FontWeight="SemiBold"/>
                                 <TextBlock Text="{Binding Description}" Style="{StaticResource CaptionTextBlockStyle}"
                                            TextWrapping="Wrap"/>
