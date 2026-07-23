@@ -21,6 +21,13 @@ grammar_note: >
   never share meaning within one placeholder — {{input:Name:Default|upper}} prompts
   for Name (defaulting to "Default") and then uppercases whatever was typed.
 
+naming_convention: >
+  Every variable name is one lowercase word, no underscores or dashes (snipsversion,
+  localdate, timestampms, ...). This is enforced by hand, not by code — a request for
+  a name with a separator (e.g. "snips_version") gets renamed to match before it
+  ships, same reasoning as format_convention below: one convention, not one per
+  request.
+
 format_convention: >
   Rule (2026-07-23, to prevent a growing zoo of one-off variable names): a custom
   date/time shape is ALWAYS written as a .NET format string passed as an argument to
@@ -153,6 +160,13 @@ date_and_time:
     example: "+02:00"
 
 identity_system_and_paths:
+  - token: "{{snipsversion}}"
+    example: "built 2026-07-23 16:23"
+    note: >
+      the running Snips build identifier (same text shown in the title bar / tray
+      tooltip). Named without an underscore, unlike Roland's original request, to
+      stay consistent with every other variable name in this file — see
+      format_convention above for why that consistency rule exists.
   - token: "{{user}}"
     example: Windows login name
   - token: "{{userfullname}}"

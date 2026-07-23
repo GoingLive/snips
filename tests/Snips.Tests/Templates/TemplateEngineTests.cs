@@ -10,7 +10,7 @@ public class TemplateEngineTests
         string snippetName = "Test Snippet", string snippetDescription = "", int useCount = 0,
         string? clipboard = null, string? activeWindow = null, string? activeApp = null,
         ICounterStore? counters = null, IInteractivePrompt? prompt = null,
-        IReadOnlyDictionary<string, string>? externalVariables = null) => new()
+        IReadOnlyDictionary<string, string>? externalVariables = null, string? appVersion = null) => new()
     {
         Now = FixedNow,
         SystemInfo = new FakeSystemInfoProvider(),
@@ -23,6 +23,7 @@ public class TemplateEngineTests
         Counters = counters,
         Prompt = prompt,
         ExternalVariables = externalVariables,
+        AppVersion = appVersion,
     };
 
     // --- §7.1 Date and time -------------------------------------------------------------
@@ -151,6 +152,20 @@ public class TemplateEngineTests
     {
         var result = await TemplateEngine.RenderAsync("{{user}} @ {{machine}} ({{os}})", MakeContext());
         Assert.Equal("roland @ DESKTOP-TEST (Windows 11 Pro)", result.Text);
+    }
+
+    [Fact]
+    public async Task SnipsVersion_ReflectsTheInjectedAppVersion()
+    {
+        var result = await TemplateEngine.RenderAsync("{{snipsversion}}", MakeContext(appVersion: "built 2026-07-23 16:23"));
+        Assert.Equal("built 2026-07-23 16:23", result.Text);
+    }
+
+    [Fact]
+    public async Task SnipsVersion_ResolvesToEmpty_WhenNotSupplied()
+    {
+        var result = await TemplateEngine.RenderAsync("{{snipsversion}}", MakeContext());
+        Assert.Equal(string.Empty, result.Text);
     }
 
     // --- §7.3 Context -----------------------------------------------------------------------

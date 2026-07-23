@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 
 namespace Snips.App;
@@ -7,27 +8,49 @@ internal sealed record VariableReferenceItem(string Token, string Description);
 
 public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
 {
-    /// <summary>The built-in variables from SPEC.md §7, shown so users can see the real
-    /// supported names/syntax instead of guessing (e.g. {{Roland}}, {{DD.MM.YYYY}} — neither
-    /// is a real variable, so both were correctly left as literal text by the template engine).</summary>
+    /// <summary>The built-in variables from SPEC.md §7 / docs/variables.yaml, shown so users
+    /// can see the real supported names/syntax instead of guessing (e.g. {{Roland}},
+    /// {{DD.MM.YYYY}} — neither is a real variable, so both were correctly left as literal text
+    /// by the template engine). Kept in sync by hand with BuiltInVariables.cs — there's no
+    /// reflection-based generation, so a newly added variable needs an entry here too.</summary>
     private static readonly VariableReferenceItem[] VariableReference =
     [
         new("{{date}}", "Today's date (yyyy-MM-dd)"),
-        new("{{date:dd.MM.yyyy}}", "Today's date, custom format"),
+        new("{{date:dd.MM.yyyy}}", "Today's date, custom format — any format may contain ':' freely"),
+        new("{{date:+7d:dd.MM.yyyy}}", "Date with an offset and a custom format together"),
         new("{{time}}", "Current time (HH:mm:ss)"),
         new("{{datetime}}", "Date and time together"),
+        new("{{iso}}", "ISO 8601 date/time with UTC offset"),
+        new("{{localdate}}", "Short date in your Windows display-language format"),
+        new("{{localtime}}", "Short time in your Windows display-language format"),
+        new("{{locallongdate}}", "Long date in your Windows display-language format"),
+        new("{{locallongtime}}", "Long time in your Windows display-language format"),
+        new("{{intldate}}", "Spelled-out English date, e.g. \"23 July 2026\", regardless of locale"),
+        new("{{now:yyyy-MM-dd HH:mm}}", "Current date/time in any custom format you choose"),
         new("{{year}}", "Current year"),
         new("{{weekday}}", "Day name, e.g. Tuesday"),
+        new("{{monthname}}", "Month name, e.g. July"),
+        new("{{week}}", "ISO-8601 week number"),
+        new("{{quarter}}", "Current quarter, e.g. Q3"),
         new("{{tomorrow}}", "Tomorrow's date"),
         new("{{yesterday}}", "Yesterday's date"),
+        new("{{timezone}}", "Your Windows time zone ID"),
+        new("{{snipsversion}}", "The build of Snips currently running"),
         new("{{user}}", "Your Windows login name"),
-        new("{{useremail}}", "Your email — needs a Settings screen to configure, not built yet"),
+        new("{{userfullname}}", "Your Windows full display name"),
+        new("{{useremail}}", "Your email — set it in the tray menu's Settings…"),
         new("{{machine}}", "Computer name"),
+        new("{{os}}", "Operating system name"),
+        new("{{home}}", "Your user home folder path"),
         new("{{clipboard}}", "Current clipboard text"),
+        new("{{activewindow}}", "Title of the window Snips will paste into"),
+        new("{{activeapp}}", "Name of the app Snips will paste into"),
         new("{{snippetname}}", "This snippet's own name"),
         new("{{usecount}}", "Times this snippet has been used"),
         new("{{guid}}", "A random unique ID"),
+        new("{{id}}", "A locally-unique, sortable ID (Snowflake)"),
         new("{{random:1-100}}", "A random number in a range"),
+        new("{{randomstring:12}}", "A random alphanumeric string of the given length"),
         new("{{counter:Invoice}}", "A persistent counter — increments every time this snippet is used"),
         new("{{input:Name}}", "Prompts for a value called Name"),
         new("{{input:Name:Default}}", "Prompts for a value, pre-filled with a default"),
@@ -50,6 +73,16 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
         BodyBox.Text = body ?? string.Empty;
         VariableReferenceList.ItemsSource = VariableReference;
         Loaded += (_, _) => NameBox.Focus();
+    }
+
+    private void VariableSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        var query = VariableSearchBox.Text.Trim();
+        VariableReferenceList.ItemsSource = query.Length == 0
+            ? VariableReference
+            : VariableReference.Where(v =>
+                v.Token.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                v.Description.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     public void ShowError(string message)

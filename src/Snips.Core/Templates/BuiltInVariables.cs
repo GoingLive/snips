@@ -56,6 +56,7 @@ internal static partial class BuiltInVariables
             case "utcoffset": return now.ToString("zzz", culture);
 
             // §7.2 Identity, system, and paths
+            case "snipsversion": return context.AppVersion ?? string.Empty;
             case "user": return context.SystemInfo.UserName;
             case "userfullname": return context.SystemInfo.UserFullName;
             case "useremail": return context.UserEmail ?? string.Empty;

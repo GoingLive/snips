@@ -11,6 +11,13 @@
         Plain-text editor only. The rich-text WebView2 editor from SPEC.md §5.7 is Phase 3;
         this exists so Phase 2's picker has a real way to create and edit snippets meanwhile.
     -->
+    <ui:FluentWindow.Resources>
+        <!-- Same warm recolor for ui:TextBox's built-in clear button as MainWindow — see that
+             window's Resources for why these particular keys and why window-scoped. -->
+        <SolidColorBrush x:Key="TextControlButtonForeground" Color="#E0A800"/>
+        <SolidColorBrush x:Key="SubtleFillColorSecondaryBrush" Color="#FFF3D6"/>
+        <SolidColorBrush x:Key="SubtleFillColorTertiaryBrush" Color="#FFE9B3"/>
+    </ui:FluentWindow.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -64,18 +71,25 @@
             <Grid Grid.Column="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" Text="Variables (double-click to insert)"
                            Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" Margin="0,0,0,4"/>
 
-                <ListBox Grid.Row="1" x:Name="VariableReferenceList" BorderThickness="1" BorderBrush="#E0A800"
+                <ui:TextBox Grid.Row="1" x:Name="VariableSearchBox" Padding="6,4" Margin="0,0,0,6"
+                            PlaceholderText="Search variables…" ClearButtonEnabled="True"
+                            TextChanged="VariableSearchBox_TextChanged"/>
+
+                <ListBox Grid.Row="2" x:Name="VariableReferenceList" BorderThickness="1" BorderBrush="#E0A800"
                          Background="White" MouseDoubleClick="VariableReferenceList_MouseDoubleClick"
                          KeyDown="VariableReferenceList_KeyDown">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Margin="2,3">
+                            <!-- Right margin clears the vertical scrollbar for the same reason as
+                                 MainWindow's results list — see that file's ItemTemplate comment. -->
+                            <StackPanel Margin="2,3,16,3">
                                 <TextBlock Text="{Binding Token}" FontFamily="Consolas" FontSize="11" FontWeight="SemiBold"/>
                                 <TextBlock Text="{Binding Description}" Style="{StaticResource CaptionTextBlockStyle}"
                                            TextWrapping="Wrap"/>

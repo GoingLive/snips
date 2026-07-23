@@ -19,6 +19,10 @@ public sealed class TemplateContext
     public required ISystemInfoProvider SystemInfo { get; init; }
     public string? UserEmail { get; init; }
 
+    /// <summary>Backs {{snipsversion}}. Set from Snips.App.BuildIdentifier — Core can't
+    /// reference App directly, so the caller supplies the already-computed string.</summary>
+    public string? AppVersion { get; init; }
+
     // Context — §7.3. {{selection}} is intentionally not here yet; it needs to be captured
     // by simulating Ctrl+C against the paste target before rendering even starts (§6.3),
     // which is a separate, best-effort-by-design piece of work from template rendering itself.

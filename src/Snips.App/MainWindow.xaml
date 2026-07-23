@@ -20,6 +20,15 @@
         <SolidColorBrush x:Key="TextOnSurface" Color="#3E2A15"/>
         <SolidColorBrush x:Key="TextOnSurfaceMuted" Color="#8A6B4A"/>
         <SolidColorBrush x:Key="TextSecondary" Color="#6B6355"/>
+
+        <!-- ui:TextBox's built-in clear ("X") button reads these theme keys via DynamicResource
+             from inside its own control template (confirmed against WPF-UI's TextBox.xaml
+             source). Declared here rather than overridden app-wide, so only controls within
+             THIS window pick up the warm recolor — this window has no other control that reads
+             these particular "Subtle" keys today, but a future one added here would. -->
+        <SolidColorBrush x:Key="TextControlButtonForeground" Color="#E0A800"/>
+        <SolidColorBrush x:Key="SubtleFillColorSecondaryBrush" Color="#FFF3D6"/>
+        <SolidColorBrush x:Key="SubtleFillColorTertiaryBrush" Color="#FFE9B3"/>
     </ui:FluentWindow.Resources>
 
     <Grid>
@@ -71,16 +80,20 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="SearchBox" Grid.Column="0" Padding="6,4"
-                             FontSize="14"
+                    <ui:TextBox x:Name="SearchBox" Grid.Column="0" Padding="6,4"
+                             FontSize="14" PlaceholderText="Search snippets…" ClearButtonEnabled="True"
                              TextChanged="SearchBox_TextChanged"
                              PreviewKeyDown="SearchBox_PreviewKeyDown"/>
                     <ui:Button x:Name="NewSnippetButton" Grid.Column="1" Content="New" Appearance="Primary"
                                Margin="8,0,0,0" Click="NewSnippetButton_Click"/>
                 </Grid>
 
-                <!-- Results -->
-                <ListBox x:Name="ResultsList" Grid.Row="1" Margin="0,0,0,8" Padding="0,0,18,0"
+                <!-- Results. NOTE: ListBox.Padding is deliberately NOT set here — checked
+                     against WPF-UI's own ListBox.xaml source and it's never consumed by that
+                     control's template (PART_ContentHost has no Padding template-binding), so
+                     it silently does nothing. The real fix for scrollbar/content overlap has
+                     to live in the row template below instead. -->
+                <ListBox x:Name="ResultsList" Grid.Row="1" Margin="0,0,0,8"
                          Background="Transparent" BorderThickness="0"
                          SelectionChanged="ResultsList_SelectionChanged"
                          MouseDoubleClick="ResultsList_MouseDoubleClick"
@@ -111,8 +124,17 @@
                              ItemContainerStyle trigger was silently a no-op. This approach owns every
                              pixel directly and can't be defeated by the base control template. -->
                         <DataTemplate>
+                            <!-- Right margin (16px) clears WPF-UI's vertical scrollbar, which is
+                                 confirmed (from WPF-UI's ScrollBar.xaml/ScrollViewer.xaml source)
+                                 to be 14px wide and to sit ON TOP of the content column rather
+                                 than being reserved space next to it — the ScrollViewer's content
+                                 presenter is deliberately Grid.ColumnSpan="2", spanning under the
+                                 scrollbar's own column. Nothing at the ListBox level can fix that
+                                 (see the ListBox.Padding note above), so each row reserves its own
+                                 clearance instead. -->
                             <Border x:Name="RowBorder" Background="{StaticResource Surface}"
-                                    BorderBrush="{StaticResource RowDivider}" BorderThickness="0,0,0,1">
+                                    BorderBrush="{StaticResource RowDivider}" BorderThickness="0,0,0,1"
+                                    Margin="0,0,16,0">
                                 <Grid Margin="8,6">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -143,11 +165,10 @@
 
                 <TextBlock Grid.Row="2" Text="Preview" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,4"/>
 
-                <!-- Preview / result field. Right padding (18px, matching ResultsList below)
-                     reserves room so wrapped text never runs under the vertical scrollbar's
-                     track — WPF-UI's Fluent scrollbar floats over the content edge rather than
-                     claiming its own column, which is what made text look "crossed" by the
-                     thumb before this had no padding reserved for it at all. -->
+                <!-- Preview / result field. Unlike ListBox, plain TextBox's own Padding IS
+                     correctly template-bound (confirmed in WPF-UI's TextBox.xaml — it becomes
+                     the Margin around the internal scroll host), so 18px here genuinely clears
+                     the confirmed 14px-wide scrollbar with room to spare. -->
                 <TextBox x:Name="PreviewBox" Grid.Row="3" Margin="0,0,0,8" Padding="8,6,18,6"
                          IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
                          VerticalScrollBarVisibility="Auto"

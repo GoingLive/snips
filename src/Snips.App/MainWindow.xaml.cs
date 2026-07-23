@@ -283,6 +283,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             SnippetDescription = snippet.Description,
             UseCount = snippet.UseCount,
             UserEmail = _userEmail,
+            AppVersion = BuildIdentifier.Value,
             ClipboardText = clipboardText,
             ActiveWindowTitle = target is { } titleTarget ? ActiveWindowInfo.GetWindowTitle(titleTarget) : null,
             ActiveAppName = target is { } appTarget ? ActiveWindowInfo.GetProcessName(appTarget) : null,
@@ -407,8 +408,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 SetStatus(statusTarget, result switch
                 {
                     PasteResult.Sent => "Pasted.",
-                    PasteResult.AccessDenied =>
-                        "Target app is running as administrator — copied to clipboard, press Ctrl+V yourself.",
+                    // Deliberately not blaming admin elevation specifically here — Windows can
+                    // refuse to switch foreground for other reasons too (see PasteSender's
+                    // ForegroundDenied doc comment), and a wrong specific cause sends the wrong
+                    // troubleshooting instinct.
+                    PasteResult.ForegroundDenied =>
+                        "Couldn't bring the target app to the front (Windows refused the switch) — copied to clipboard, press Ctrl+V yourself.",
                     PasteResult.FocusTimeout =>
                         "Couldn't bring the target app to the front in time — copied to clipboard, press Ctrl+V yourself.",
                     PasteResult.TargetGone => "Target window is gone — copied to clipboard instead.",

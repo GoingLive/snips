@@ -6,7 +6,12 @@ public enum PasteResult
 {
     Sent,
     TargetGone,
-    AccessDenied,  // UIPI: target runs elevated and we don't. See SPEC.md §6.2.
+    // Windows refused to give the target foreground. This used to be labelled purely as UIPI
+    // elevation mismatch, but that's only one of several causes — Windows' general
+    // foreground-lock heuristic can reject the request even between two completely ordinary,
+    // unelevated windows. Renamed from AccessDenied so the caller doesn't have to keep
+    // asserting a specific cause the code can't actually distinguish.
+    ForegroundDenied,
     FocusTimeout,  // SetForegroundWindow "succeeded" but the target never actually became foreground in time.
 }
 
@@ -22,17 +27,24 @@ public static class PasteSender
         if (targetHwnd == IntPtr.Zero || !NativeMethods.IsWindow(targetHwnd))
             return PasteResult.TargetGone;
 
-        var targetThreadId = NativeMethods.GetWindowThreadProcessId(targetHwnd, out _);
+        // Windows only allows SetForegroundWindow to succeed for a thread that currently has
+        // (or recently had) input focus standing — the calling thread here (Snips, mid paste)
+        // usually does, since the user just clicked/pressed Enter in its window, but that
+        // standing belongs to whichever thread currently owns the foreground window, not to the
+        // target we're trying to switch to. AttachThreadInput needs to borrow standing FROM the
+        // current foreground thread, not synchronize with the target's thread — attaching to the
+        // target does nothing for this specific permission check.
+        var foregroundThreadId = NativeMethods.GetWindowThreadProcessId(NativeMethods.GetForegroundWindow(), out _);
         var currentThreadId = NativeMethods.GetCurrentThreadId();
         var attached = false;
 
         try
         {
-            if (targetThreadId != 0 && targetThreadId != currentThreadId)
-                attached = NativeMethods.AttachThreadInput(currentThreadId, targetThreadId, true);
+            if (foregroundThreadId != 0 && foregroundThreadId != currentThreadId)
+                attached = NativeMethods.AttachThreadInput(currentThreadId, foregroundThreadId, true);
 
             if (!NativeMethods.SetForegroundWindow(targetHwnd))
-                return PasteResult.AccessDenied;
+                return PasteResult.ForegroundDenied;
 
             NativeMethods.BringWindowToTop(targetHwnd);
 
@@ -49,7 +61,7 @@ public static class PasteSender
         finally
         {
             if (attached)
-                NativeMethods.AttachThreadInput(currentThreadId, targetThreadId, false);
+                NativeMethods.AttachThreadInput(currentThreadId, foregroundThreadId, false);
         }
 
         if (NativeMethods.GetForegroundWindow() != targetHwnd)
