@@ -180,8 +180,10 @@
                          width on one row anyway, so it was likely being silently clipped) —
                          Ctrl+Enter covers the "keep it open" case for anyone who wants it. -->
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <CheckBox x:Name="CopyCheckBox" Content="Copy to clipboard" IsChecked="True" Margin="0,0,16,0"/>
-                        <CheckBox x:Name="PasteCheckBox" Content="Paste into active app" IsChecked="False"/>
+                        <CheckBox x:Name="CopyCheckBox" Content="Copy to clipboard" IsChecked="True" Margin="0,0,16,0"
+                                  Checked="CopyCheckBox_Changed" Unchecked="CopyCheckBox_Changed"/>
+                        <CheckBox x:Name="PasteCheckBox" Content="Paste into active app" IsChecked="False"
+                                  Checked="PasteCheckBox_Changed" Unchecked="PasteCheckBox_Changed"/>
                     </StackPanel>
                     <TextBlock x:Name="StatusText" Style="{StaticResource CaptionTextBlockStyle}"
                                Foreground="{StaticResource TextSecondary}"

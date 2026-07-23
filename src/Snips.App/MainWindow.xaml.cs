@@ -27,6 +27,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private Dictionary<string, string> _shortcutLabelsBySnippetId = [];
     private string? _userEmail;
     private bool _isExiting;
+    private bool _copyDefault = true;
+    private bool _pasteDefault;
 
     public MainWindow(SnipsDatabase database, ForegroundWindowTracker foregroundTracker, string externalVariablesPath)
     {
@@ -50,12 +52,15 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         SearchBox.Text = string.Empty;
         StatusText.Text = string.Empty;
-        // Reset to defaults every time rather than leaving whatever was checked last: with no
-        // Settings screen yet to set a real default, an invisible "Paste" checkbox left checked
-        // from an earlier test is exactly how surprises like this happen.
-        CopyCheckBox.IsChecked = true;
-        PasteCheckBox.IsChecked = false;
         await RefreshListAsync();
+        // Restored from Settings rather than reset to a hardcoded default — Roland's own
+        // confusion ("why is the checkbox unchecked every time") was this window's prior
+        // behaviour working as designed (deliberately reset every time, to avoid an invisible
+        // stale "Paste" checkbox surprising someone). Now that there's a real Settings store and
+        // an honest paste-failure status message, remembering the last choice is less surprising
+        // than silently discarding it.
+        CopyCheckBox.IsChecked = _copyDefault;
+        PasteCheckBox.IsChecked = _pasteDefault;
         SearchBox.Focus();
     }
 
@@ -84,8 +89,27 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _shortcutLabelsBySnippetId = (await _database.Shortcuts.ListAllAsync())
             .ToDictionary(s => s.SnippetId, s => HotkeyFormatting.Format(s.Modifiers, s.VirtualKey));
         _userEmail = await _database.Settings.GetAsync("UserEmail");
+        _copyDefault = await _database.Settings.GetAsync("CopyToClipboardDefault") != "0";
+        _pasteDefault = await _database.Settings.GetAsync("PasteIntoActiveAppDefault") == "1";
         ApplyFilter();
         RefreshTrayMenu();
+    }
+
+    // Both handlers guard on _database being set: the XAML-declared IsChecked values on these
+    // checkboxes raise Checked/Unchecked synchronously from InitializeComponent(), which runs
+    // as the very first line of this class's constructor — before _database is assigned. Without
+    // the guard, that XAML-time event fires straight into a null field and crashes the app on
+    // every single startup (caught only by the smoke-test pattern, never actually shipped).
+    private void CopyCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_database is not null)
+            _ = _database.Settings.SetAsync("CopyToClipboardDefault", CopyCheckBox.IsChecked == true ? "1" : "0");
+    }
+
+    private void PasteCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_database is not null)
+            _ = _database.Settings.SetAsync("PasteIntoActiveAppDefault", PasteCheckBox.IsChecked == true ? "1" : "0");
     }
 
     /// <summary>
@@ -475,7 +499,17 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
 
         var dialog = new SnippetEditWindow(snippet.Name, snippet.Description, snippet.PlainText) { Owner = this };
-        if (dialog.ShowDialog() != true)
+        var saved = dialog.ShowDialog();
+
+        if (dialog.DeleteRequested)
+        {
+            // The editor already asked "Delete 'X'?" and got a yes — don't ask again.
+            await _database.Snippets.DeleteAsync(snippet.Id);
+            await RefreshListAsync();
+            return;
+        }
+
+        if (saved != true)
             return;
 
         snippet.Name = dialog.EnteredName;

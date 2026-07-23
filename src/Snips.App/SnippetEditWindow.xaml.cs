@@ -65,6 +65,11 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
     public string EnteredDescription => DescriptionBox.Text.Trim();
     public string EnteredBody => BodyBox.Text;
 
+    /// <summary>Set when the user confirms Delete. Distinct from DialogResult (which Close()
+    /// without an explicit assignment defaults to false) so the caller can tell "cancelled"
+    /// apart from "delete this" even though both leave ShowDialog() returning false/null.</summary>
+    public bool DeleteRequested { get; private set; }
+
     public SnippetEditWindow(string? name = null, string? description = null, string? body = null)
     {
         InitializeComponent();
@@ -72,7 +77,20 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
         DescriptionBox.Text = description ?? string.Empty;
         BodyBox.Text = body ?? string.Empty;
         VariableReferenceList.ItemsSource = VariableReference;
+        // Only an existing snippet (opened via Edit) can be deleted — New passes no name.
+        DeleteButton.Visibility = name is not null ? Visibility.Visible : Visibility.Collapsed;
         Loaded += (_, _) => NameBox.Focus();
+    }
+
+    private void DeleteButton_Click(object sender, RoutedEventArgs e)
+    {
+        var confirmed = MessageBox.Show(
+            this, $"Delete '{EnteredName}'?", "Snips", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (confirmed != MessageBoxResult.Yes)
+            return;
+
+        DeleteRequested = true;
+        Close();
     }
 
     private void VariableSearchBox_TextChanged(object sender, TextChangedEventArgs e)

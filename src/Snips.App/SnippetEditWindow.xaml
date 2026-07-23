@@ -59,10 +59,24 @@
                 <TextBlock Grid.Row="6" x:Name="ErrorText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="#B00020" Margin="0,0,0,8"
                            TextWrapping="Wrap" Visibility="Collapsed"/>
 
-                <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <ui:Button x:Name="CancelButton" Content="Cancel" Appearance="Secondary" Width="80" Margin="0,0,8,0" Click="CancelButton_Click"/>
-                    <ui:Button x:Name="SaveButton" Content="Save" Appearance="Primary" Width="80" IsDefault="True" Click="SaveButton_Click"/>
-                </StackPanel>
+                <Grid Grid.Row="7">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Only shown when editing an existing snippet — kept apart from Cancel/Save
+                         (its own column, not the same StackPanel) so a destructive action never
+                         sits directly beside the default/Enter-triggered Save button. -->
+                    <ui:Button Grid.Column="0" x:Name="DeleteButton" Content="Delete" Appearance="Secondary"
+                               Foreground="#B00020" Click="DeleteButton_Click"/>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <ui:Button x:Name="CancelButton" Content="Cancel" Appearance="Secondary" Width="80" Margin="0,0,8,0" Click="CancelButton_Click"/>
+                        <ui:Button x:Name="SaveButton" Content="Save" Appearance="Primary" Width="80" IsDefault="True" Click="SaveButton_Click"/>
+                    </StackPanel>
+                </Grid>
             </Grid>
 
             <!-- Variable reference — double-click (or Enter) inserts the token at the caret.
