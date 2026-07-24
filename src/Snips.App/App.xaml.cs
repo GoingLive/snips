@@ -90,6 +90,7 @@ public partial class App : Application
         var dbPath = ResolveDatabasePath();
         _database = await SnipsDatabase.OpenAsync(dbPath);
         await SeedExampleSnippetsIfEmptyAsync(_database);
+        await LanguagePackSeedData.SeedIfEmptyAsync(_database.VariableTranslations);
 
         // Must exist before the window so WM_HOTKEY delivery (via SetWinEventHook,
         // WINEVENT_OUTOFCONTEXT) starts as soon as the Dispatcher message loop is pumping.
