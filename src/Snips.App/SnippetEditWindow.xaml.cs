@@ -64,18 +64,20 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
     public string EnteredName => NameBox.Text.Trim();
     public string EnteredDescription => DescriptionBox.Text.Trim();
     public string EnteredBody => BodyBox.Text;
+    public bool EnteredIsFavorite => FavoriteCheckBox.IsChecked == true;
 
     /// <summary>Set when the user confirms Delete. Distinct from DialogResult (which Close()
     /// without an explicit assignment defaults to false) so the caller can tell "cancelled"
     /// apart from "delete this" even though both leave ShowDialog() returning false/null.</summary>
     public bool DeleteRequested { get; private set; }
 
-    public SnippetEditWindow(string? name = null, string? description = null, string? body = null)
+    public SnippetEditWindow(string? name = null, string? description = null, string? body = null, bool isFavorite = false)
     {
         InitializeComponent();
         NameBox.Text = name ?? string.Empty;
         DescriptionBox.Text = description ?? string.Empty;
         BodyBox.Text = body ?? string.Empty;
+        FavoriteCheckBox.IsChecked = isFavorite;
         VariableReferenceList.ItemsSource = VariableReference;
         // Only an existing snippet (opened via Edit) can be deleted — New passes no name.
         DeleteButton.Visibility = name is not null ? Visibility.Visible : Visibility.Collapsed;

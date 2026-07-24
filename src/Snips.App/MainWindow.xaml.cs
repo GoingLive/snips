@@ -31,6 +31,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private bool _copyDefault = true;
     private bool _pasteDefault;
     private bool _closeAfterApplyDefault;
+    private bool _favoritesFilterDefault;
+    private Point? _dragStartPoint;
+    private PickerRow? _dragCandidateRow;
     private string _languageCode = "en";
     private IReadOnlyDictionary<string, string>? _variableNameTranslations;
 
@@ -66,6 +69,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         CopyCheckBox.IsChecked = _copyDefault;
         PasteCheckBox.IsChecked = _pasteDefault;
         CloseAfterApplyCheckBox.IsChecked = _closeAfterApplyDefault;
+        FavoritesFilterToggle.IsChecked = _favoritesFilterDefault;
         SearchBox.Focus();
     }
 
@@ -97,6 +101,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _copyDefault = await _database.Settings.GetAsync("CopyToClipboardDefault") != "0";
         _pasteDefault = await _database.Settings.GetAsync("PasteIntoActiveAppDefault") == "1";
         _closeAfterApplyDefault = await _database.Settings.GetAsync("CloseAfterApplyDefault") == "1";
+        _favoritesFilterDefault = await _database.Settings.GetAsync("FavoritesFilterDefault") == "1";
         await RefreshLanguageAsync();
         ApplyFilter();
         RefreshTrayMenu();
@@ -140,6 +145,30 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (_database is not null)
             _ = _database.Settings.SetAsync("CloseAfterApplyDefault", CloseAfterApplyCheckBox.IsChecked == true ? "1" : "0");
+    }
+
+    private void FavoritesFilterToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_database is not null)
+            _ = _database.Settings.SetAsync("FavoritesFilterDefault", FavoritesFilterToggle.IsChecked == true ? "1" : "0");
+        ApplyFilter();
+    }
+
+    /// <summary>Toggles favorite status for whichever row's star was clicked, independent of
+    /// the current selection — same reasoning as EditRowButton_Click.</summary>
+    private async void FavoriteRowButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: PickerRow row })
+            return;
+
+        row.Snippet.IsFavorite = !row.Snippet.IsFavorite;
+        // A newly-favorited snippet starts after every existing favorite rather than jumping to
+        // an arbitrary position — matches "add to the end of the list you built" expectations.
+        if (row.Snippet.IsFavorite)
+            row.Snippet.FavoriteSortOrder = _allSnippets.Where(s => s.IsFavorite).Select(s => s.FavoriteSortOrder).DefaultIfEmpty(-1).Max() + 1;
+
+        await _database.Snippets.UpdateAsync(row.Snippet);
+        await RefreshListAsync();
     }
 
     /// <summary>
@@ -194,11 +223,23 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             await RefreshListAsync();
     }
 
+    /// <summary>Favorites-only shows the user's own drag order (ties broken by name so a
+    /// freshly-favorited snippet doesn't land somewhere random); otherwise everything sorts
+    /// alphabetically. SnippetSearch's own doc comment confirms it trusts this order verbatim
+    /// when the search box is empty — it only re-ranks once there's an actual query, at which
+    /// point relevance reasonably wins over either ordering. Roland, 2026-07-24.</summary>
+    private IEnumerable<Snippet> OrderedSourceSnippets() =>
+        FavoritesFilterToggle.IsChecked == true
+            ? _allSnippets.Where(s => s.IsFavorite)
+                .OrderBy(s => s.FavoriteSortOrder)
+                .ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+            : _allSnippets.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase);
+
     private void ApplyFilter()
     {
         var previouslySelectedId = GetSelectedSnippet()?.Id;
 
-        var matches = SnippetSearch.Search(_allSnippets, SearchBox.Text, DateTime.UtcNow)
+        var matches = SnippetSearch.Search(OrderedSourceSnippets(), SearchBox.Text, DateTime.UtcNow)
             .Select(m => new PickerRow(
                 m.Snippet,
                 _shortcutLabelsBySnippetId.GetValueOrDefault(m.Snippet.Id)))
@@ -299,6 +340,120 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (ItemsControl.ContainerFromElement(ResultsList, (DependencyObject)e.OriginalSource) is ListBoxItem { IsSelected: true })
             _ = RefreshPreviewAsync();
+
+        // Recorded regardless of favorites-filter state so ResultsList_PreviewMouseMove has a
+        // baseline to measure from — the filter check itself happens at drag-start time instead,
+        // so toggling the filter mid-click can't leave a stale drag armed.
+        if (GetRowUnderMouse(e.OriginalSource) is { } row)
+        {
+            _dragStartPoint = e.GetPosition(ResultsList);
+            _dragCandidateRow = row;
+        }
+    }
+
+    /// <summary>Starts a drag once the mouse has genuinely moved (not just clicked) past the
+    /// system's drag threshold — distinguishes an intentional drag from a click that happens to
+    /// land on FavoriteRowButton/EditRowButton, which would otherwise never get their own Click
+    /// event if a drag started on every mouse-down. Only meaningful in the favorites-filtered
+    /// view; see the XAML comment on ResultsList for why.</summary>
+    private void ResultsList_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || _dragStartPoint is not { } start || _dragCandidateRow is not { } row)
+            return;
+
+        if (FavoritesFilterToggle.IsChecked != true)
+            return;
+
+        var current = e.GetPosition(ResultsList);
+        if (Math.Abs(current.X - start.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(current.Y - start.Y) < SystemParameters.MinimumVerticalDragDistance)
+            return;
+
+        _dragStartPoint = null;
+        _dragCandidateRow = null;
+        DragDrop.DoDragDrop(ResultsList, row, DragDropEffects.Move);
+    }
+
+    /// <summary>Renumbers every favorite 0..N-1 in the new order and persists all of them —
+    /// favorites are a short list (Roland: "5-10, not so much for all of the snippets"), so
+    /// rewriting the whole set on every reorder costs nothing real and avoids sort-value drift
+    /// that incremental swapping would eventually accumulate.</summary>
+    private async Task ReorderFavoritesAsync(List<Snippet> newOrder)
+    {
+        for (var i = 0; i < newOrder.Count; i++)
+            newOrder[i].FavoriteSortOrder = i;
+
+        foreach (var favorite in newOrder)
+            await _database.Snippets.UpdateAsync(favorite);
+
+        await RefreshListAsync();
+    }
+
+    private List<Snippet> CurrentFavoritesInOrder() =>
+        _allSnippets.Where(s => s.IsFavorite).OrderBy(s => s.FavoriteSortOrder).ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase).ToList();
+
+    private async void ResultsList_Drop(object sender, DragEventArgs e)
+    {
+        if (FavoritesFilterToggle.IsChecked != true || e.Data.GetData(typeof(PickerRow)) is not PickerRow draggedRow)
+            return;
+
+        if (GetRowUnderMouse(e.OriginalSource)?.Snippet.Id is not { } targetId || targetId == draggedRow.Snippet.Id)
+            return;
+
+        var favorites = CurrentFavoritesInOrder();
+        var dragged = favorites.FirstOrDefault(s => s.Id == draggedRow.Snippet.Id);
+        var targetIndex = favorites.FindIndex(s => s.Id == targetId);
+        if (dragged is null || targetIndex < 0)
+            return;
+
+        favorites.Remove(dragged);
+        favorites.Insert(targetIndex, dragged);
+        await ReorderFavoritesAsync(favorites);
+    }
+
+    private static PickerRow? GetRowUnderMouse(object originalSource) =>
+        originalSource is DependencyObject d && FindAncestorListBoxItem(d) is { } item ? item.DataContext as PickerRow : null;
+
+    private static ListBoxItem? FindAncestorListBoxItem(DependencyObject source)
+    {
+        var current = source;
+        while (current is not null and not ListBoxItem)
+            current = System.Windows.Media.VisualTreeHelper.GetParent(current);
+        return current as ListBoxItem;
+    }
+
+    /// <summary>Move Up/Down: a fully keyboard/menu-driven reorder that works identically to
+    /// dragging, for anyone who'd rather not (or can't reliably) drag with a mouse.</summary>
+    private void ResultsListContextMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        var isFavoritesView = FavoritesFilterToggle.IsChecked == true;
+        var selected = GetSelectedSnippet();
+        var favorites = isFavoritesView ? CurrentFavoritesInOrder() : [];
+        var index = selected is null ? -1 : favorites.FindIndex(s => s.Id == selected.Id);
+
+        MoveUpMenuItem.Visibility = MoveDownMenuItem.Visibility = MoveSeparator.Visibility =
+            isFavoritesView ? Visibility.Visible : Visibility.Collapsed;
+        MoveUpMenuItem.IsEnabled = index > 0;
+        MoveDownMenuItem.IsEnabled = index >= 0 && index < favorites.Count - 1;
+    }
+
+    private async void MoveUpMenuItem_Click(object sender, RoutedEventArgs e) => await MoveSelectedFavoriteAsync(-1);
+    private async void MoveDownMenuItem_Click(object sender, RoutedEventArgs e) => await MoveSelectedFavoriteAsync(1);
+
+    private async Task MoveSelectedFavoriteAsync(int direction)
+    {
+        var selected = GetSelectedSnippet();
+        if (selected is null)
+            return;
+
+        var favorites = CurrentFavoritesInOrder();
+        var index = favorites.FindIndex(s => s.Id == selected.Id);
+        var newIndex = index + direction;
+        if (index < 0 || newIndex < 0 || newIndex >= favorites.Count)
+            return;
+
+        (favorites[index], favorites[newIndex]) = (favorites[newIndex], favorites[index]);
+        await ReorderFavoritesAsync(favorites);
     }
 
     /// <summary>
@@ -529,6 +684,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 BodyHtml = ToPlaceholderHtml(dialog.EnteredBody),
                 PlainText = dialog.EnteredBody,
                 IsRichText = false,
+                IsFavorite = dialog.EnteredIsFavorite,
                 CreatedUtc = now,
                 ModifiedUtc = now,
             });
@@ -547,7 +703,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (snippet is null)
             return;
 
-        var dialog = new SnippetEditWindow(snippet.Name, snippet.Description, snippet.PlainText) { Owner = this };
+        var dialog = new SnippetEditWindow(snippet.Name, snippet.Description, snippet.PlainText, snippet.IsFavorite) { Owner = this };
         var saved = dialog.ShowDialog();
 
         if (dialog.DeleteRequested)
@@ -565,6 +721,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         snippet.Description = dialog.EnteredDescription;
         snippet.PlainText = dialog.EnteredBody;
         snippet.BodyHtml = ToPlaceholderHtml(dialog.EnteredBody);
+
+        // Same "goes to the end of the favorites, not somewhere random" rule as the row's star
+        // button — only assign a fresh order the moment it BECOMES a favorite here.
+        if (dialog.EnteredIsFavorite && !snippet.IsFavorite)
+            snippet.FavoriteSortOrder = _allSnippets.Where(s => s.IsFavorite).Select(s => s.FavoriteSortOrder).DefaultIfEmpty(-1).Max() + 1;
+        snippet.IsFavorite = dialog.EnteredIsFavorite;
 
         try
         {

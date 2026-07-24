@@ -144,4 +144,43 @@ public class SqliteSnippetRepositoryTests : IAsyncLifetime
 
         Assert.Equal(["Recently used", "Alpha", "Zebra"], names);
     }
+
+    // --- Favorites (Roland, 2026-07-24) ------------------------------------------------------
+
+    [Fact]
+    public async Task CreateAsync_DefaultsToNotFavoriteWithZeroSortOrder()
+    {
+        var created = await Repository.CreateAsync(NewDraft());
+
+        Assert.False(created.IsFavorite);
+        Assert.Equal(0, created.FavoriteSortOrder);
+    }
+
+    [Fact]
+    public async Task IsFavoriteAndFavoriteSortOrder_RoundTripThroughCreateAndGet()
+    {
+        var draft = NewDraft();
+        draft.IsFavorite = true;
+        draft.FavoriteSortOrder = 3;
+
+        var created = await Repository.CreateAsync(draft);
+        var fetched = await Repository.GetByIdAsync(created.Id);
+
+        Assert.True(fetched!.IsFavorite);
+        Assert.Equal(3, fetched.FavoriteSortOrder);
+    }
+
+    [Fact]
+    public async Task IsFavoriteAndFavoriteSortOrder_RoundTripThroughUpdate()
+    {
+        var created = await Repository.CreateAsync(NewDraft());
+
+        created.IsFavorite = true;
+        created.FavoriteSortOrder = 7;
+        await Repository.UpdateAsync(created);
+
+        var fetched = await Repository.GetByIdAsync(created.Id);
+        Assert.True(fetched!.IsFavorite);
+        Assert.Equal(7, fetched.FavoriteSortOrder);
+    }
 }

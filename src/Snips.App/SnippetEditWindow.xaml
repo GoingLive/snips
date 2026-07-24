@@ -45,7 +45,14 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="Name" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,4"/>
+                <Grid Grid.Row="0" Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Name" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                    <CheckBox Grid.Column="1" x:Name="FavoriteCheckBox" Content="Favorite"/>
+                </Grid>
                 <TextBox Grid.Row="1" x:Name="NameBox" Margin="0,0,0,12"/>
 
                 <TextBlock Grid.Row="2" Text="Description" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,4"/>

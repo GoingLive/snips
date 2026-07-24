@@ -12,7 +12,7 @@ public sealed class SqliteSnippetRepository(SqliteConnection connection, Snowfla
     private const int SqliteConstraintUnique = 2067; // SQLITE_CONSTRAINT_UNIQUE
 
     private const string Columns =
-        "Id, Name, Description, BodyHtml, PlainText, IsRichText, FolderId, IsFavorite, UseCount, LastUsedUtc, CreatedUtc, ModifiedUtc";
+        "Id, Name, Description, BodyHtml, PlainText, IsRichText, FolderId, IsFavorite, FavoriteSortOrder, UseCount, LastUsedUtc, CreatedUtc, ModifiedUtc";
 
     public async Task<Snippet> CreateAsync(Snippet snippet, CancellationToken ct = default)
     {
@@ -27,6 +27,7 @@ public sealed class SqliteSnippetRepository(SqliteConnection connection, Snowfla
             IsRichText = snippet.IsRichText,
             FolderId = snippet.FolderId,
             IsFavorite = snippet.IsFavorite,
+            FavoriteSortOrder = snippet.FavoriteSortOrder,
             UseCount = snippet.UseCount,
             LastUsedUtc = snippet.LastUsedUtc,
             CreatedUtc = now,
@@ -37,7 +38,7 @@ public sealed class SqliteSnippetRepository(SqliteConnection connection, Snowfla
         command.CommandText = $"""
             INSERT INTO Snippet ({Columns})
             VALUES ($id, $name, $description, $bodyHtml, $plainText, $isRichText, $folderId,
-                    $isFavorite, $useCount, $lastUsedUtc, $createdUtc, $modifiedUtc);
+                    $isFavorite, $favoriteSortOrder, $useCount, $lastUsedUtc, $createdUtc, $modifiedUtc);
             """;
         BindSnippetParameters(command, toInsert);
 
@@ -100,6 +101,7 @@ public sealed class SqliteSnippetRepository(SqliteConnection connection, Snowfla
             IsRichText = snippet.IsRichText,
             FolderId = snippet.FolderId,
             IsFavorite = snippet.IsFavorite,
+            FavoriteSortOrder = snippet.FavoriteSortOrder,
             UseCount = snippet.UseCount,
             LastUsedUtc = snippet.LastUsedUtc,
             CreatedUtc = snippet.CreatedUtc,
@@ -111,6 +113,7 @@ public sealed class SqliteSnippetRepository(SqliteConnection connection, Snowfla
             UPDATE Snippet SET
                 Name = $name, Description = $description, BodyHtml = $bodyHtml, PlainText = $plainText,
                 IsRichText = $isRichText, FolderId = $folderId, IsFavorite = $isFavorite,
+                FavoriteSortOrder = $favoriteSortOrder,
                 UseCount = $useCount, LastUsedUtc = $lastUsedUtc, ModifiedUtc = $modifiedUtc
             WHERE Id = $id;
             """;
@@ -162,6 +165,7 @@ public sealed class SqliteSnippetRepository(SqliteConnection connection, Snowfla
         command.Parameters.AddWithValue("$isRichText", s.IsRichText ? 1 : 0);
         command.Parameters.AddWithValue("$folderId", (object?)s.FolderId ?? DBNull.Value);
         command.Parameters.AddWithValue("$isFavorite", s.IsFavorite ? 1 : 0);
+        command.Parameters.AddWithValue("$favoriteSortOrder", s.FavoriteSortOrder);
         command.Parameters.AddWithValue("$useCount", s.UseCount);
         command.Parameters.AddWithValue("$lastUsedUtc", (object?)ToIsoOrNull(s.LastUsedUtc) ?? DBNull.Value);
         command.Parameters.AddWithValue("$createdUtc", ToIso(s.CreatedUtc));
@@ -178,10 +182,11 @@ public sealed class SqliteSnippetRepository(SqliteConnection connection, Snowfla
         IsRichText = reader.GetInt64(5) != 0,
         FolderId = reader.IsDBNull(6) ? null : reader.GetString(6),
         IsFavorite = reader.GetInt64(7) != 0,
-        UseCount = (int)reader.GetInt64(8),
-        LastUsedUtc = reader.IsDBNull(9) ? null : FromIso(reader.GetString(9)),
-        CreatedUtc = FromIso(reader.GetString(10)),
-        ModifiedUtc = FromIso(reader.GetString(11)),
+        FavoriteSortOrder = (int)reader.GetInt64(8),
+        UseCount = (int)reader.GetInt64(9),
+        LastUsedUtc = reader.IsDBNull(10) ? null : FromIso(reader.GetString(10)),
+        CreatedUtc = FromIso(reader.GetString(11)),
+        ModifiedUtc = FromIso(reader.GetString(12)),
     };
 
     private static string ToIso(DateTime value) =>

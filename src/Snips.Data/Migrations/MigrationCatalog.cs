@@ -93,5 +93,13 @@ internal static class MigrationCatalog
             CREATE UNIQUE INDEX IX_VarTranslation_LangLocalName ON VariableNameTranslation(LanguageCode, LocalName COLLATE NOCASE);
             CREATE INDEX IX_VarTranslation_LangMaster ON VariableNameTranslation(LanguageCode, MasterKey);
             """),
+
+        // Favorites (Roland, 2026-07-24): a user-defined drag order for favorites only —
+        // everything else sorts alphabetically instead. IsFavorite already existed since
+        // Migration 1 but nothing read or wrote it; this is the first real use of it.
+        new Migration(3, "FavoriteSortOrder", """
+            ALTER TABLE Snippet ADD COLUMN FavoriteSortOrder INTEGER NOT NULL DEFAULT 0;
+            CREATE INDEX IX_Snippet_Favorite ON Snippet(IsFavorite, FavoriteSortOrder);
+            """),
     ];
 }

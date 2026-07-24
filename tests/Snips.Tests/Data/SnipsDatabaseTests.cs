@@ -25,10 +25,10 @@ public class SnipsDatabaseTests : IAsyncLifetime
             Assert.Contains(table, actualTables);
     }
 
-    // MigrationCatalog.All.Count as of this test: 2 (InitialSchema, LanguagePackPhase1).
-    // MigrationCatalog is internal with no InternalsVisibleTo, so this is a hand-kept number,
-    // not a reflected one — bump it whenever a migration is added.
-    private const int ExpectedMigrationCount = 2;
+    // MigrationCatalog.All.Count as of this test: 3 (InitialSchema, LanguagePackPhase1,
+    // FavoriteSortOrder). MigrationCatalog is internal with no InternalsVisibleTo, so this is a
+    // hand-kept number, not a reflected one — bump it whenever a migration is added.
+    private const int ExpectedMigrationCount = 3;
 
     [Fact]
     public async Task OpenAsync_RecordsSchemaVersionExactlyOnce()
