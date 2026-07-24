@@ -251,6 +251,31 @@ public class TemplateEngineTests
         Assert.Equal("Dear {{totallyMadeUp}},", result.Text);
     }
 
+    [Theory]
+    [InlineData("{{date:o'clock}}")]
+    [InlineData("{{now:o'clock}}")]
+    [InlineData("{{tomorrow:o'clock}}")]
+    // A malformed custom format string (here: an unmatched literal-string quote) throws
+    // FormatException from .NET's own DateTimeOffset.ToString — reachable from ordinary typing
+    // in a snippet body. This used to be uncaught and would crash the whole app (via async void
+    // UI handlers like ResultsList_SelectionChanged, which renders on every arrow-key browse).
+    // It must degrade like an unresolved variable — literal placeholder text — not throw.
+    public async Task MalformedDateFormatString_DegradesToLiteralInsteadOfThrowing(string template)
+    {
+        var result = await TemplateEngine.RenderAsync(template, MakeContext());
+        Assert.Equal(template, result.Text);
+    }
+
+    [Fact]
+    public async Task NegativePadWidth_LeavesValueUnchangedInsteadOfThrowing()
+    {
+        // String.PadLeft/PadRight throw ArgumentOutOfRangeException for a negative width —
+        // reachable via {{x|padleft:-5}}. TemplateFilters' own stated rule is that a bad
+        // argument leaves the value unchanged, not that it crashes the caller.
+        var result = await TemplateEngine.RenderAsync("{{clipboard|padleft:-5}}", MakeContext(clipboard: "hi"));
+        Assert.Equal("hi", result.Text);
+    }
+
     // --- External variables (docs/variables.yaml "not_yet_implemented", proposal 2026-07-22) ---
 
     [Fact]

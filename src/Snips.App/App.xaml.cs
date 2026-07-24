@@ -43,6 +43,23 @@ public partial class App : Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
+        // No global handler existed anywhere before this (flagged in a full-codebase review,
+        // 2026-07-24). The specific crash it caught — a malformed date/filter format string
+        // reaching an unguarded .ToString(format) — is now fixed at the source in
+        // BuiltInVariables/TemplateFilters, but this stays as the actual safety net: almost
+        // every UI event handler in this app is async void (SelectionChanged, drag/drop,
+        // favorite toggling, ...), and an unhandled exception from ANY of them terminates the
+        // whole tray app instantly with zero feedback, for a mistake as small as browsing to the
+        // wrong row. Marking e.Handled = true is what keeps the app alive instead of crashing;
+        // the message box is just so it's not a silent swallow.
+        DispatcherUnhandledException += (_, ex) =>
+        {
+            MessageBox.Show(
+                $"Snips hit an unexpected error and stayed open, but this snippet or action may not have worked:\n\n{ex.Exception.Message}",
+                "Snips", MessageBoxButton.OK, MessageBoxImage.Warning);
+            ex.Handled = true;
+        };
+
         // Snips always starts hidden in the tray by design (SPEC.md §10) — which means a
         // second launch (e.g. double-clicking the desktop shortcut again while it's already
         // running) previously just started an invisible duplicate process with no feedback

@@ -5,9 +5,13 @@
 # than guessing or failing, so a typo or an unsupported name is always visible, never
 # silently dropped.
 #
-# Nothing here can be redefined or added to by the user yet — see docs/SPEC.md §8 and
-# the "proposal" discussed with Roland on 2026-07-22 for where user-defined and
-# externally-supplied variables are headed.
+# Nothing here can be redefined by the user yet — see docs/SPEC.md §8 for where
+# user-defined variables are headed. Externally-supplied variables HAVE shipped: any
+# name found in external-variables.json (next to snips.db; see
+# Snips.Core.Storage.DatabasePathResolver.ExternalVariablesFileName) resolves as a
+# variable too, checked after built-ins/translations and before falling back to literal
+# text. Written by another process or by hand — Snips re-reads the file on every render,
+# so an external update is picked up on the very next paste with no restart needed.
 #
 # Every name below can ALSO be typed in a translated form, e.g. German {{heute}} for
 # {{date}} — set your language in Settings, then add translated names via Settings ->
@@ -284,4 +288,3 @@ not_yet_implemented:
   - "{{selection}} — always empty, see context section above"
   - "{{cursor}} — post-paste caret positioning, not built"
   - user-defined variables (constants or scripts) — nothing exists yet for a user to define their own
-  - externally-supplied variables (e.g. from a JSON file or another app) — proposed, not built; see chat log 2026-07-22

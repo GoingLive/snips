@@ -92,7 +92,10 @@ public static class TemplateFilters
 
     private static string Pad(string s, IReadOnlyList<string> args, bool padRight)
     {
-        if (args.Count == 0 || !int.TryParse(args[0].Split(',')[0], out var width))
+        // width < 0 isn't just "unusual," it's a hard throw from PadLeft/PadRight
+        // (ArgumentOutOfRangeException) — this file's own stated rule is that a bad argument
+        // leaves the value unchanged, not that it crashes the caller.
+        if (args.Count == 0 || !int.TryParse(args[0].Split(',')[0], out var width) || width < 0)
             return s;
 
         var parts = args[0].Split(',', 2);

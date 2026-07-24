@@ -40,8 +40,8 @@ internal static partial class BuiltInVariables
             // system locale — for correspondence meant to read unambiguously in English no
             // matter who opens it, as opposed to {{localdate}} which follows the user's locale.
             case "intldate": return now.ToString("d MMMM yyyy", CultureInfo.GetCultureInfo("en-US"));
-            case "now": return now.ToString(args.Count > 0 ? RejoinFormat(args) : "yyyy-MM-dd HH:mm:ss", culture);
-            case "utcnow": return now.ToUniversalTime().ToString(args.Count > 0 ? RejoinFormat(args) : "yyyy-MM-dd HH:mm:ss", culture);
+            case "now": return SafeFormat(now, args.Count > 0 ? RejoinFormat(args) : "yyyy-MM-dd HH:mm:ss", culture);
+            case "utcnow": return SafeFormat(now.ToUniversalTime(), args.Count > 0 ? RejoinFormat(args) : "yyyy-MM-dd HH:mm:ss", culture);
             case "timestamp": return now.ToUnixTimeSeconds().ToString(culture);
             case "timestampms": return now.ToUnixTimeMilliseconds().ToString(culture);
             case "weekday": return now.ToString("dddd", culture);
@@ -99,11 +99,11 @@ internal static partial class BuiltInVariables
     /// not user-supplied, so there's no offset-vs-format ambiguity to resolve. The format still
     /// needs RejoinFormat: a format like "HH:mm" arrives from the parser already shredded into
     /// separate args by its own colon (see RejoinFormat's doc comment).</summary>
-    private static string FormatWithOffset(
+    private static string? FormatWithOffset(
         DateTimeOffset baseTime, IReadOnlyList<string> args, int offsetIndex, int formatIndex, string defaultFormat, CultureInfo culture)
     {
         var format = args.Count > formatIndex ? RejoinFormat(args) : defaultFormat;
-        return baseTime.ToString(format, culture);
+        return SafeFormat(baseTime, format, culture);
     }
 
     /// <summary>date/time/datetime take an optional offset AND an optional format, in either
@@ -114,10 +114,10 @@ internal static partial class BuiltInVariables
     /// Previously a single format-only arg was always misread as a (non-matching, silently
     /// ignored) offset, so {{date:dd.MM.yyyy}} rendered as the untouched default format instead
     /// of the requested one.</summary>
-    private static string FormatDateOrTime(DateTimeOffset now, IReadOnlyList<string> args, string defaultFormat, CultureInfo culture)
+    private static string? FormatDateOrTime(DateTimeOffset now, IReadOnlyList<string> args, string defaultFormat, CultureInfo culture)
     {
         if (args.Count == 0)
-            return now.ToString(defaultFormat, culture);
+            return SafeFormat(now, defaultFormat, culture);
 
         // Classify by the FIRST arg's shape, not by how many pieces the parser handed back —
         // a colon inside the format (e.g. "HH:mm") makes args.Count vary independently of
@@ -127,10 +127,31 @@ internal static partial class BuiltInVariables
         if (OffsetPattern().IsMatch(args[0]))
         {
             var format = args.Count > 1 ? RejoinFormat(args.Skip(1).ToList()) : defaultFormat;
-            return ApplyOffset(now, args[0]).ToString(format, culture);
+            return SafeFormat(ApplyOffset(now, args[0]), format, culture);
         }
 
-        return now.ToString(RejoinFormat(args), culture);
+        return SafeFormat(now, RejoinFormat(args), culture);
+    }
+
+    /// <summary>Every custom date/time format string here ultimately comes from what the user
+    /// typed in a snippet — an easy, realistic typo (e.g. an unmatched literal-string quote)
+    /// throws FormatException from .NET's own formatter. Uncaught, that's fatal: several picker
+    /// UI paths that call into the render pipeline are async void (SelectionChanged included),
+    /// so an unhandled exception there crashes the whole app, not just this one placeholder —
+    /// simply arrow-key-browsing to the snippet would do it. Returning null here instead makes
+    /// TemplateEngine treat it exactly like an unknown variable name: the placeholder is left
+    /// visible as literal text rather than silently dropped OR crashing anything, matching
+    /// SPEC.md §1.1's "degrade, don't fail" principle.</summary>
+    private static string? SafeFormat(DateTimeOffset value, string format, CultureInfo culture)
+    {
+        try
+        {
+            return value.ToString(format, culture);
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
     }
 
     /// <summary>A format string containing its own ':' (e.g. "HH:mm", extremely common for
@@ -198,6 +219,21 @@ internal static partial class BuiltInVariables
         var format = args.Count > 2 ? args[2] : null;
 
         var value = await context.Counters.IncrementAndGetAsync(name, step, ct);
-        return format is null ? value.ToString(CultureInfo.InvariantCulture) : value.ToString(format, CultureInfo.InvariantCulture);
+        if (format is null)
+            return value.ToString(CultureInfo.InvariantCulture);
+
+        // Same reasoning as SafeFormat above: a malformed numeric format string (e.g. an
+        // unmatched literal-string quote) throws FormatException, and the counter was already
+        // incremented by IncrementAndGetAsync above — falling back to unformatted rather than
+        // re-throwing means a typo in the format doesn't also make the counter's actual
+        // increment invisible to the user.
+        try
+        {
+            return value.ToString(format, CultureInfo.InvariantCulture);
+        }
+        catch (FormatException)
+        {
+            return value.ToString(CultureInfo.InvariantCulture);
+        }
     }
 }

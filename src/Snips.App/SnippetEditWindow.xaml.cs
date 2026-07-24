@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Snips.Core.Templates;
 
 namespace Snips.App;
 
@@ -8,47 +9,15 @@ internal sealed record VariableReferenceItem(string Token, string Description);
 
 public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
 {
-    /// <summary>The built-in variables from SPEC.md §7 / docs/variables.yaml, shown so users
-    /// can see the real supported names/syntax instead of guessing (e.g. {{Roland}},
-    /// {{DD.MM.YYYY}} — neither is a real variable, so both were correctly left as literal text
-    /// by the template engine). Kept in sync by hand with BuiltInVariables.cs — there's no
-    /// reflection-based generation, so a newly added variable needs an entry here too.</summary>
-    private static readonly VariableReferenceItem[] VariableReference =
+    /// <summary>A curated subset of variables where a worked example (an offset, a custom
+    /// format, an argument) is more useful than the bare name alone. Anything not listed here
+    /// still shows up via BuiltInVariableCatalog.All below, so a newly added variable is always
+    /// discoverable even before anyone gets around to giving it a nicer example.</summary>
+    private static readonly VariableReferenceItem[] CuratedExamples =
     [
-        new("{{date}}", "Today's date (yyyy-MM-dd)"),
         new("{{date:dd.MM.yyyy}}", "Today's date, custom format — any format may contain ':' freely"),
         new("{{date:+7d:dd.MM.yyyy}}", "Date with an offset and a custom format together"),
-        new("{{time}}", "Current time (HH:mm:ss)"),
-        new("{{datetime}}", "Date and time together"),
-        new("{{iso}}", "ISO 8601 date/time with UTC offset"),
-        new("{{localdate}}", "Short date in your Windows display-language format"),
-        new("{{localtime}}", "Short time in your Windows display-language format"),
-        new("{{locallongdate}}", "Long date in your Windows display-language format"),
-        new("{{locallongtime}}", "Long time in your Windows display-language format"),
-        new("{{intldate}}", "Spelled-out English date, e.g. \"23 July 2026\", regardless of locale"),
         new("{{now:yyyy-MM-dd HH:mm}}", "Current date/time in any custom format you choose"),
-        new("{{year}}", "Current year"),
-        new("{{weekday}}", "Day name, e.g. Tuesday"),
-        new("{{monthname}}", "Month name, e.g. July"),
-        new("{{week}}", "ISO-8601 week number"),
-        new("{{quarter}}", "Current quarter, e.g. Q3"),
-        new("{{tomorrow}}", "Tomorrow's date"),
-        new("{{yesterday}}", "Yesterday's date"),
-        new("{{timezone}}", "Your Windows time zone ID"),
-        new("{{snipsversion}}", "The build of Snips currently running"),
-        new("{{user}}", "Your Windows login name"),
-        new("{{userfullname}}", "Your Windows full display name"),
-        new("{{useremail}}", "Your email — set it in the tray menu's Settings…"),
-        new("{{machine}}", "Computer name"),
-        new("{{os}}", "Operating system name"),
-        new("{{home}}", "Your user home folder path"),
-        new("{{clipboard}}", "Current clipboard text"),
-        new("{{activewindow}}", "Title of the window Snips will paste into"),
-        new("{{activeapp}}", "Name of the app Snips will paste into"),
-        new("{{snippetname}}", "This snippet's own name"),
-        new("{{usecount}}", "Times this snippet has been used"),
-        new("{{guid}}", "A random unique ID"),
-        new("{{id}}", "A locally-unique, sortable ID (Snowflake)"),
         new("{{random:1-100}}", "A random number in a range"),
         new("{{randomstring:12}}", "A random alphanumeric string of the given length"),
         new("{{counter:Invoice}}", "A persistent counter — increments every time this snippet is used"),
@@ -60,6 +29,28 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
         new("{{check:Confirmed:yes,no}}", "Prompts for a checkbox"),
         new("{{clipboard|upper}}", "Filters chain with | — this uppercases the clipboard text"),
     ];
+
+    /// <summary>The built-in variables from SPEC.md §7, shown so users can see the real
+    /// supported names/syntax instead of guessing (e.g. {{Roland}}, {{DD.MM.YYYY}} — neither is
+    /// a real variable, so both were correctly left as literal text by the template engine).
+    /// Built from BuiltInVariableCatalog.All (the same master list BuiltInVariables.cs's switch
+    /// statement and the translation system are checked against) plus CuratedExamples above, so
+    /// a variable added to the catalog can never silently go missing here again — it previously
+    /// drifted by ~20 entries because this list was hand-maintained separately.</summary>
+    private static readonly VariableReferenceItem[] VariableReference = BuildVariableReference();
+
+    private static VariableReferenceItem[] BuildVariableReference()
+    {
+        var curatedNames = CuratedExamples
+            .Select(item => item.Token.Trim('{', '}').Split(':')[0].Split('|')[0])
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var fromCatalog = BuiltInVariableCatalog.All
+            .Where(v => v.Name != "selection" && !curatedNames.Contains(v.Name))
+            .Select(v => new VariableReferenceItem($"{{{{{v.Name}}}}}", v.Description));
+
+        return [.. CuratedExamples, .. fromCatalog];
+    }
 
     public string EnteredName => NameBox.Text.Trim();
     public string EnteredDescription => DescriptionBox.Text.Trim();

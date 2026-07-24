@@ -762,6 +762,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 PlainText = dialog.EnteredBody,
                 IsRichText = false,
                 IsFavorite = dialog.EnteredIsFavorite,
+                // Same "goes to the end of the favorites, not position 0" rule as
+                // FavoriteRowButton_Click and EditSelectedAsync — a full-codebase review flagged
+                // this path as the one place that skipped it, so a new snippet created directly
+                // as a favorite would jump to the top instead of the end.
+                FavoriteSortOrder = dialog.EnteredIsFavorite
+                    ? _allSnippets.Where(s => s.IsFavorite).Select(s => s.FavoriteSortOrder).DefaultIfEmpty(-1).Max() + 1
+                    : 0,
                 CreatedUtc = now,
                 ModifiedUtc = now,
             });
