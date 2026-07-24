@@ -14,41 +14,36 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
     /// <summary>A curated subset of variables where a worked example (an offset, a custom
     /// format, an argument) is more useful than the bare name alone. Anything not listed here
     /// still shows up via BuiltInVariableCatalog.All below, so a newly added variable is always
-    /// discoverable even before anyone gets around to giving it a nicer example.
-    ///
-    /// Built per-instance (not a static field) specifically so its descriptions — hardcoded here
-    /// in Snips.App rather than pulled from BuiltInVariableCatalog in Snips.Core, so the existing
-    /// VariableNameTranslation system never covered them — pick up UiStrings.Get() at whatever
-    /// language was active the moment THIS editor window opened, rather than being frozen at
-    /// whatever language happened to be active the first time any editor was ever constructed.</summary>
-    private static VariableReferenceItem[] BuildCuratedExamples() =>
+    /// discoverable even before anyone gets around to giving it a nicer example.</summary>
+    private static readonly VariableReferenceItem[] CuratedExamples =
     [
-        new("{{date:dd.MM.yyyy}}", UiStrings.Get("Str_Example_DateFormat")),
-        new("{{date:+7d:dd.MM.yyyy}}", UiStrings.Get("Str_Example_DateOffsetFormat")),
-        new("{{now:yyyy-MM-dd HH:mm}}", UiStrings.Get("Str_Example_NowFormat")),
-        new("{{random:1-100}}", UiStrings.Get("Str_Example_Random")),
-        new("{{randomstring:12}}", UiStrings.Get("Str_Example_RandomString")),
-        new("{{counter:Invoice}}", UiStrings.Get("Str_Example_Counter")),
-        new("{{input:Name}}", UiStrings.Get("Str_Example_Input")),
-        new("{{input:Name:Default}}", UiStrings.Get("Str_Example_InputDefault")),
-        new("{{multiline:Notes}}", UiStrings.Get("Str_Example_Multiline")),
-        new("{{choice:Size:S,M,L}}", UiStrings.Get("Str_Example_Choice")),
-        new("{{datepick:When:yyyy-MM-dd}}", UiStrings.Get("Str_Example_Datepick")),
-        new("{{check:Confirmed:yes,no}}", UiStrings.Get("Str_Example_Check")),
-        new("{{clipboard|upper}}", UiStrings.Get("Str_Example_FilterChain")),
+        new("{{date:dd.MM.yyyy}}", "Today's date, custom format — any format may contain ':' freely"),
+        new("{{date:+7d:dd.MM.yyyy}}", "Date with an offset and a custom format together"),
+        new("{{now:yyyy-MM-dd HH:mm}}", "Current date/time in any custom format you choose"),
+        new("{{random:1-100}}", "A random number in a range"),
+        new("{{randomstring:12}}", "A random alphanumeric string of the given length"),
+        new("{{counter:Invoice}}", "A persistent counter — increments every time this snippet is used"),
+        new("{{input:Name}}", "Prompts for a value called Name"),
+        new("{{input:Name:Default}}", "Prompts for a value, pre-filled with a default"),
+        new("{{multiline:Notes}}", "Prompts for multi-line text"),
+        new("{{choice:Size:S,M,L}}", "Prompts to pick one of the listed options"),
+        new("{{datepick:When:yyyy-MM-dd}}", "Prompts to pick a date"),
+        new("{{check:Confirmed:yes,no}}", "Prompts for a checkbox"),
+        new("{{clipboard|upper}}", "Filters chain with | — this uppercases the clipboard text"),
     ];
 
     /// <summary>The built-in variables from SPEC.md §7, shown so users can see the real
     /// supported names/syntax instead of guessing (e.g. {{Roland}}, {{DD.MM.YYYY}} — neither is
     /// a real variable, so both were correctly left as literal text by the template engine).
     /// Built from BuiltInVariableCatalog.All (the same master list BuiltInVariables.cs's switch
-    /// statement and the translation system are checked against) plus the curated examples above,
-    /// so a variable added to the catalog can never silently go missing here again — it
-    /// previously drifted by ~20 entries because this list was hand-maintained separately.</summary>
+    /// statement and the translation system are checked against) plus CuratedExamples above, so
+    /// a variable added to the catalog can never silently go missing here again — it previously
+    /// drifted by ~20 entries because this list was hand-maintained separately.</summary>
+    private static readonly VariableReferenceItem[] VariableReference = BuildVariableReference();
+
     private static VariableReferenceItem[] BuildVariableReference()
     {
-        var curatedExamples = BuildCuratedExamples();
-        var curatedNames = curatedExamples
+        var curatedNames = CuratedExamples
             .Select(item => item.Token.Trim('{', '}').Split(':')[0].Split('|')[0])
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -56,12 +51,11 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
             .Where(v => v.Name != "selection" && !curatedNames.Contains(v.Name))
             .Select(v => new VariableReferenceItem($"{{{{{v.Name}}}}}", v.Description));
 
-        return [.. curatedExamples, .. fromCatalog];
+        return [.. CuratedExamples, .. fromCatalog];
     }
 
     private readonly IShortcutRepository? _shortcuts;
     private readonly string? _snippetId;
-    private readonly VariableReferenceItem[] _variableReference;
     private Shortcut? _currentShortcut;
 
     public string EnteredName => NameBox.Text.Trim();
@@ -88,8 +82,7 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
         DescriptionBox.Text = description ?? string.Empty;
         BodyBox.Text = body ?? string.Empty;
         FavoriteCheckBox.IsChecked = isFavorite;
-        _variableReference = BuildVariableReference();
-        VariableReferenceList.ItemsSource = _variableReference;
+        VariableReferenceList.ItemsSource = VariableReference;
         // Only an existing snippet (opened via Edit) can be deleted — New passes no name.
         DeleteButton.Visibility = name is not null ? Visibility.Visible : Visibility.Collapsed;
 
@@ -98,7 +91,7 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
         _currentShortcut = existingShortcut;
         AssignShortcutButton.IsEnabled = snippetId is not null;
         AssignShortcutButton.ToolTip = snippetId is null
-            ? UiStrings.Get("Str_AssignTooltipDisabled")
+            ? "Save the snippet first, then a shortcut can be assigned here or from the list."
             : null;
         UpdateShortcutDisplay();
 
@@ -108,7 +101,7 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
     private void UpdateShortcutDisplay()
     {
         ShortcutDisplayText.Text = _currentShortcut is null
-            ? UiStrings.Get("Str_None")
+            ? "None"
             : HotkeyFormatting.Format(_currentShortcut.Modifiers, _currentShortcut.VirtualKey);
         ClearShortcutButton.Visibility = _currentShortcut is null ? Visibility.Collapsed : Visibility.Visible;
     }
@@ -139,8 +132,7 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
     private void DeleteButton_Click(object sender, RoutedEventArgs e)
     {
         var confirmed = MessageBox.Show(
-            this, UiStrings.Get("Str_DeleteConfirmFormat", EnteredName), UiStrings.Get("Str_AppName"),
-            MessageBoxButton.YesNo, MessageBoxImage.Question);
+            this, $"Delete '{EnteredName}'?", "Snips", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (confirmed != MessageBoxResult.Yes)
             return;
 
@@ -152,8 +144,8 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
     {
         var query = VariableSearchBox.Text.Trim();
         VariableReferenceList.ItemsSource = query.Length == 0
-            ? _variableReference
-            : _variableReference.Where(v =>
+            ? VariableReference
+            : VariableReference.Where(v =>
                 v.Token.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                 v.Description.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
     }
@@ -168,7 +160,7 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (string.IsNullOrWhiteSpace(EnteredName))
         {
-            ShowError(UiStrings.Get("Str_NameRequiredError"));
+            ShowError("Name is required.");
             return;
         }
 

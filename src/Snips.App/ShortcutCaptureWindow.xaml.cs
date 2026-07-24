@@ -24,7 +24,7 @@ public partial class ShortcutCaptureWindow : Wpf.Ui.Controls.FluentWindow
         _snippetId = snippetId;
         _shortcuts = shortcuts;
 
-        TitleText.Text = UiStrings.Get("Str_ShortcutCaptureTitleFormat", snippetName);
+        TitleText.Text = $"Shortcut for “{snippetName}”";
 
         if (existing is not null)
         {
@@ -63,11 +63,11 @@ public partial class ShortcutCaptureWindow : Wpf.Ui.Controls.FluentWindow
 
         if (!HotkeyValidator.HasRequiredModifierOrIsFunctionKey(modifiers, virtualKey))
         {
-            ShowError(UiStrings.Get("Str_ModifierRequiredError"));
+            ShowError("Add at least one modifier (Ctrl/Alt/Shift/Win), or use a bare F1–F24 key.");
         }
         else if (HotkeyValidator.IsReserved(modifiers, virtualKey))
         {
-            ShowError(UiStrings.Get("Str_ReservedComboError"));
+            ShowError("That combination is reserved by Windows and can't be used.");
         }
         else
         {

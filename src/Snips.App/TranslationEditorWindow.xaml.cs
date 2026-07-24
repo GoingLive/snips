@@ -93,7 +93,7 @@ public partial class TranslationEditorWindow : Wpf.Ui.Controls.FluentWindow
     private void UpdateCoverageText()
     {
         var translated = _allRows.Count(r => r.HasTranslation);
-        CoverageText.Text = UiStrings.Get("Str_CoverageFormat", translated, _allRows.Count);
+        CoverageText.Text = $"{translated} of {_allRows.Count} translated.";
     }
 
     private async void SaveButton_Click(object sender, RoutedEventArgs e)
@@ -116,7 +116,7 @@ public partial class TranslationEditorWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         UpdateCoverageText();
-        CoverageText.Text += UiStrings.Get("Str_SavedSuffix");
+        CoverageText.Text += " Saved.";
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();

@@ -52,14 +52,14 @@
     <Grid>
         <tb:TaskbarIcon x:Name="TrayIcon"
                          IconSource="Resources/tray.ico"
-                         ToolTipText="{DynamicResource Str_AppName}"
+                         ToolTipText="Snips"
                          TrayLeftMouseDoubleClick="TrayIcon_TrayLeftMouseDoubleClick"
                          TrayLeftMouseUp="TrayIcon_TrayLeftMouseUp">
             <tb:TaskbarIcon.ContextMenu>
                 <ContextMenu>
-                    <MenuItem Header="{DynamicResource Str_TrayShow}" Click="ShowMenuItem_Click"/>
+                    <MenuItem Header="Show Snips" Click="ShowMenuItem_Click"/>
                     <Separator/>
-                    <MenuItem Header="{DynamicResource Str_TrayQuit}" Click="QuitMenuItem_Click"/>
+                    <MenuItem Header="Quit" Click="QuitMenuItem_Click"/>
                 </ContextMenu>
             </tb:TaskbarIcon.ContextMenu>
         </tb:TaskbarIcon>
@@ -81,11 +81,11 @@
                  relying on a template quirk that doesn't actually apply to it. -->
             <ui:TitleBar Grid.Row="0" ShowMaximize="False" ShowHelp="True" HelpClicked="TitleBar_HelpClicked">
                 <ui:TitleBar.Header>
-                    <TextBlock Text="{DynamicResource Str_AppName}" FontSize="16" FontWeight="Bold" Margin="16,0,0,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="Snips" FontSize="16" FontWeight="Bold" Margin="16,0,0,0" VerticalAlignment="Center"/>
                 </ui:TitleBar.Header>
             </ui:TitleBar>
 
-            <TextBlock Grid.Row="1" Text="{DynamicResource Str_MainSubtitle}"
+            <TextBlock Grid.Row="1" Text="The tool to define and paste snippets at your fingertips."
                        Style="{StaticResource CaptionTextBlockStyle}" Foreground="{StaticResource TextSecondary}"
                        TextWrapping="Wrap" Margin="16,0,16,6"/>
 
@@ -113,11 +113,11 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <ui:TextBox x:Name="SearchBox" Grid.Column="0" Padding="6,4"
-                             FontSize="14" PlaceholderText="{DynamicResource Str_SearchPlaceholder}" ClearButtonEnabled="True"
+                             FontSize="14" PlaceholderText="Search snippets…" ClearButtonEnabled="True"
                              TextChanged="SearchBox_TextChanged"
                              PreviewKeyDown="SearchBox_PreviewKeyDown"/>
                     <ToggleButton x:Name="FavoritesFilterToggle" Grid.Column="1" Margin="8,0,0,0"
-                                  ToolTip="{DynamicResource Str_ShowOnlyFavoritesTooltip}" Checked="FavoritesFilterToggle_Changed"
+                                  ToolTip="Show only favorites" Checked="FavoritesFilterToggle_Changed"
                                   Unchecked="FavoritesFilterToggle_Changed">
                         <ui:SymbolIcon Symbol="Star24" Filled="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
                     </ToggleButton>
@@ -126,11 +126,11 @@
                          above: a remembered sort preference can't hide anything, so it doesn't
                          carry the same risk. -->
                     <ComboBox x:Name="SortModeComboBox" Grid.Column="2" Margin="8,0,0,0" Width="90"
-                              ToolTip="{DynamicResource Str_SortTooltip}" SelectionChanged="SortModeComboBox_SelectionChanged">
-                        <ComboBoxItem Content="{DynamicResource Str_SortAZ}" Tag="Name"/>
-                        <ComboBoxItem Content="{DynamicResource Str_SortNewest}" Tag="Recent"/>
+                              ToolTip="Sort the rest of the list" SelectionChanged="SortModeComboBox_SelectionChanged">
+                        <ComboBoxItem Content="A-Z" Tag="Name"/>
+                        <ComboBoxItem Content="Newest" Tag="Recent"/>
                     </ComboBox>
-                    <ui:Button x:Name="NewSnippetButton" Grid.Column="3" Content="{DynamicResource Str_NewButton}" Appearance="Primary"
+                    <ui:Button x:Name="NewSnippetButton" Grid.Column="3" Content="New" Appearance="Primary"
                                Margin="8,0,0,0" Click="NewSnippetButton_Click"/>
                 </Grid>
 
@@ -167,17 +167,17 @@
                          Drop="ResultsList_Drop">
                     <ListBox.ContextMenu>
                         <ContextMenu Opened="ResultsListContextMenu_Opened">
-                            <MenuItem Header="{DynamicResource Str_MenuNew}" Click="NewMenuItem_Click"/>
-                            <MenuItem Header="{DynamicResource Str_MenuEdit}" Click="EditMenuItem_Click"/>
-                            <MenuItem Header="{DynamicResource Str_MenuDuplicate}" Click="DuplicateMenuItem_Click"/>
-                            <MenuItem Header="{DynamicResource Str_Delete}" Click="DeleteMenuItem_Click"/>
+                            <MenuItem Header="New" Click="NewMenuItem_Click"/>
+                            <MenuItem Header="Edit" Click="EditMenuItem_Click"/>
+                            <MenuItem Header="Duplicate" Click="DuplicateMenuItem_Click"/>
+                            <MenuItem Header="Delete" Click="DeleteMenuItem_Click"/>
                             <Separator/>
                             <!-- Only shown when the right-clicked row is itself a favorite —
                                  see ResultsListContextMenu_Opened. -->
-                            <MenuItem x:Name="MoveUpMenuItem" Header="{DynamicResource Str_MenuMoveUp}" Click="MoveUpMenuItem_Click"/>
-                            <MenuItem x:Name="MoveDownMenuItem" Header="{DynamicResource Str_MenuMoveDown}" Click="MoveDownMenuItem_Click"/>
+                            <MenuItem x:Name="MoveUpMenuItem" Header="Move Up" Click="MoveUpMenuItem_Click"/>
+                            <MenuItem x:Name="MoveDownMenuItem" Header="Move Down" Click="MoveDownMenuItem_Click"/>
                             <Separator x:Name="MoveSeparator"/>
-                            <MenuItem Header="{DynamicResource Str_MenuDefineShortcut}" Click="DefineShortcutMenuItem_Click"/>
+                            <MenuItem Header="Define a shortcut…" Click="DefineShortcutMenuItem_Click"/>
                         </ContextMenu>
                     </ListBox.ContextMenu>
                     <ListBox.ItemContainerStyle>
@@ -219,7 +219,7 @@
                                          "anywhere on the row" drag target isn't discoverable. -->
                                     <ui:SymbolIcon x:Name="DragHandleIcon" Grid.Column="0" Symbol="ReOrderDotsVertical24" FontSize="15"
                                                    Foreground="{StaticResource TextOnSurfaceMuted}" VerticalAlignment="Center"
-                                                   Margin="0,0,4,0" ToolTip="{DynamicResource Str_DragHandleTooltip}"
+                                                   Margin="0,0,4,0" ToolTip="Drag to reorder favorites"
                                                    Visibility="Collapsed"/>
                                     <StackPanel Grid.Column="1">
                                         <TextBlock x:Name="NameText" Text="{Binding Snippet.Name}" Style="{StaticResource BodyStrongTextBlockStyle}"
@@ -245,7 +245,7 @@
                                          selection trigger below inverts everything else to white. -->
                                     <ui:Button x:Name="FavoriteRowButton" Grid.Column="3" Appearance="Transparent"
                                                Padding="4" Margin="4,0,0,0" VerticalAlignment="Center"
-                                               ToolTip="{DynamicResource Str_ToggleFavoriteTooltip}" Click="FavoriteRowButton_Click">
+                                               ToolTip="Toggle favorite" Click="FavoriteRowButton_Click">
                                         <ui:SymbolIcon x:Name="FavoriteIcon" Symbol="Star24" FontSize="15"
                                                        Filled="{Binding Snippet.IsFavorite}" Foreground="{StaticResource Accent}"/>
                                     </ui:Button>
@@ -254,7 +254,7 @@
                                          top of this, not the only way to find it. -->
                                     <ui:Button x:Name="EditRowButton" Grid.Column="4" Appearance="Transparent"
                                                Padding="4" Margin="4,0,0,0" VerticalAlignment="Center"
-                                               ToolTip="{DynamicResource Str_EditRowTooltip}" Click="EditRowButton_Click">
+                                               ToolTip="Edit this snippet" Click="EditRowButton_Click">
                                         <ui:SymbolIcon Symbol="Edit24" FontSize="15"/>
                                     </ui:Button>
                                 </Grid>
@@ -295,7 +295,7 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <TextBlock Grid.Row="2" Text="{DynamicResource Str_PreviewLabel}" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,4"/>
+                <TextBlock Grid.Row="2" Text="Preview" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,4"/>
 
                 <!-- Preview / result field. Unlike ListBox, plain TextBox's own Padding IS
                      correctly template-bound (confirmed in WPF-UI's TextBox.xaml — it becomes
@@ -314,26 +314,26 @@
                      kept to one short sentence each. -->
                 <StackPanel Grid.Row="4" Margin="0,8,0,0">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <CheckBox x:Name="CopyCheckBox" Content="{DynamicResource Str_CopyCheckbox}" IsChecked="True" Margin="0,0,16,0"
+                        <CheckBox x:Name="CopyCheckBox" Content="Copy to clipboard" IsChecked="True" Margin="0,0,16,0"
                                   Checked="CopyCheckBox_Changed" Unchecked="CopyCheckBox_Changed"
-                                  ToolTip="{DynamicResource Str_CopyCheckboxTooltip}"/>
-                        <CheckBox x:Name="PasteCheckBox" Content="{DynamicResource Str_PasteCheckbox}" IsChecked="False"
+                                  ToolTip="Copies the result to your clipboard."/>
+                        <CheckBox x:Name="PasteCheckBox" Content="Paste into active app" IsChecked="False"
                                   Checked="PasteCheckBox_Changed" Unchecked="PasteCheckBox_Changed"
-                                  ToolTip="{DynamicResource Str_PasteCheckboxTooltip}"/>
+                                  ToolTip="Also types the result into the app you had open before Snips."/>
                     </StackPanel>
-                    <CheckBox x:Name="CloseAfterApplyCheckBox" Content="{DynamicResource Str_CloseAfterApplyCheckbox}" IsChecked="False"
+                    <CheckBox x:Name="CloseAfterApplyCheckBox" Content="Close this window after applying" IsChecked="False"
                               Margin="0,0,0,4" Checked="CloseAfterApplyCheckBox_Changed" Unchecked="CloseAfterApplyCheckBox_Changed"
-                              ToolTip="{DynamicResource Str_CloseAfterApplyTooltip}"/>
+                              ToolTip="If off, the window stays open so you can apply another snippet."/>
                     <TextBlock x:Name="StatusText" Style="{StaticResource CaptionTextBlockStyle}"
                                Foreground="{StaticResource TextSecondary}"
                                TextWrapping="Wrap" Margin="0,4,0,0"/>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <TextBlock Text="{DynamicResource Str_Copyright}" Style="{StaticResource CaptionTextBlockStyle}"
+                        <TextBlock Text="© 2026 Roland Hüttmann" Style="{StaticResource CaptionTextBlockStyle}"
                                    Foreground="{StaticResource TextSecondary}" Margin="0,0,8,0"/>
                         <TextBlock x:Name="BuildInfoText" Style="{StaticResource CaptionTextBlockStyle}"
                                    Foreground="{StaticResource TextSecondary}"
                                    TextWrapping="Wrap" Cursor="Hand"
-                                   ToolTip="{DynamicResource Str_BuildInfoTooltip}"
+                                   ToolTip="Click to copy this build identifier"
                                    MouseLeftButtonDown="BuildInfoText_MouseLeftButtonDown"/>
                     </StackPanel>
                 </StackPanel>
