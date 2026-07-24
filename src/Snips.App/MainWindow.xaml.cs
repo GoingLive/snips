@@ -94,22 +94,35 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     /// open for this at all, and in the common case (fired from another app while Snips sits
     /// minimised in the tray) none is.
     ///
-    /// Copies to the clipboard only — deliberately never attempts the auto-paste (synthetic
-    /// Ctrl+V into whatever app was previously foreground) that the picker's own "Paste into
-    /// active app" checkbox offers. Roland's call, after two real problems specific to this
-    /// path: (1) auto-paste has to Hide() this window to hand the target foreground, which is
-    /// fine for the picker's Enter key (only ever pressed while Snips is already the visible,
-    /// focused window) but not for a global hotkey that can fire from literally any app, at any
-    /// time, with no reliable way to know whether hiding is even wanted; (2) the synthetic
-    /// Ctrl+V it would send collides with AltGr on many non-US keyboard layouts (see
-    /// HotkeyValidator.IsLikelyAltGrCollision). Copy + a manual Ctrl+V sidesteps both, at the
-    /// cost of one extra keystroke from the user.
+    /// Auto-pastes (synthetic Ctrl+V into whatever app was previously foreground), same as the
+    /// picker's own "Paste into active app" checkbox — Roland wants the hotkey to be a true
+    /// zero-extra-keystroke action, not "copy, then press Ctrl+V yourself" (an earlier,
+    /// deliberately more conservative version of this method). What made that reasonable
+    /// fallback: on a non-US keyboard layout (Swiss German included), the physical AltGr key
+    /// sends exactly Ctrl+Alt, so a hotkey combo that's plain Ctrl+Alt+&lt;printable key&gt; can
+    /// collide with whatever character that layout already types for it — this doesn't go away
+    /// just because auto-paste is back. The capture dialog now warns about this
+    /// (HotkeyValidator.IsLikelyAltGrCollision); a combo that includes Shift, or a bare F-key,
+    /// sidesteps the ambiguity entirely and is the safe choice for a hotkey meant to work from
+    /// any app, any time.
     /// </summary>
     public async void ApplySnippetByHotkey(string snippetId)
     {
         var snippet = await _database.Snippets.GetByIdAsync(snippetId);
-        if (snippet is not null)
-            await ApplySnippetAsync(snippet, copy: true, paste: false, statusTarget: null);
+        if (snippet is null)
+            return;
+
+        var wasVisible = IsVisible;
+        var applied = await ApplySnippetAsync(snippet, copy: true, paste: true, statusTarget: null);
+
+        // Restore visibility only if the picker was actually open before this fired (the common
+        // "invisible from another app" case correctly leaves nothing to restore) and only when
+        // the user hasn't opted into auto-close — same convention as the Enter-key path.
+        if (applied && wasVisible && !IsVisible && CloseAfterApplyCheckBox.IsChecked != true)
+        {
+            Show();
+            Activate();
+        }
     }
 
     private async Task RefreshListAsync()
