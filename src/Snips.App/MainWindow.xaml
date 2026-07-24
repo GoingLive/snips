@@ -80,26 +80,20 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Search + favorites filter + quick add -->
+                <!-- Search + quick add. No favorites filter button anymore — favorites pin to
+                     the top of the always-full list instead of hiding everything else, per
+                     Roland's explicit redesign (2026-07-24): "if there is no search criteria,
+                     the whole list shows [...] if there are favorites they show at the top." -->
                 <Grid Grid.Row="0" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <ui:TextBox x:Name="SearchBox" Grid.Column="0" Padding="6,4"
                              FontSize="14" PlaceholderText="Search snippets…" ClearButtonEnabled="True"
                              TextChanged="SearchBox_TextChanged"
                              PreviewKeyDown="SearchBox_PreviewKeyDown"/>
-                    <!-- ToggleButton (plain WPF type) picks up WPF-UI's Fluent style implicitly —
-                         confirmed from source, its style targets {x:Type ToggleButton} unkeyed,
-                         no ui: prefix needed. Gives a real on/off visual state for free. -->
-                    <ToggleButton x:Name="FavoritesFilterToggle" Grid.Column="1" Margin="8,0,0,0"
-                                  ToolTip="Show only favorites" Checked="FavoritesFilterToggle_Changed"
-                                  Unchecked="FavoritesFilterToggle_Changed">
-                        <ui:SymbolIcon Symbol="Star24" Filled="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
-                    </ToggleButton>
-                    <ui:Button x:Name="NewSnippetButton" Grid.Column="2" Content="New" Appearance="Primary"
+                    <ui:Button x:Name="NewSnippetButton" Grid.Column="1" Content="New" Appearance="Primary"
                                Margin="8,0,0,0" Click="NewSnippetButton_Click"/>
                 </Grid>
 
@@ -108,9 +102,9 @@
                      control's template (PART_ContentHost has no Padding template-binding), so
                      it silently does nothing. The real fix for scrollbar/content overlap has
                      to live in the row template below instead. -->
-                <!-- AllowDrop/drag handlers only do anything meaningful while the favorites
-                     filter is active (checked in code) — matches Roland's own scoping: a
-                     user-defined order belongs to favorites specifically, not the full list. -->
+                <!-- AllowDrop/drag handlers only do anything for a favorite row being dragged
+                     onto another favorite row (checked in code) — reordering is meaningful only
+                     within the favorites section now, there's no separate filtered view. -->
                 <ListBox x:Name="ResultsList" Grid.Row="1" Margin="0,0,0,8"
                          Background="Transparent" BorderThickness="0" AllowDrop="True"
                          SelectionChanged="ResultsList_SelectionChanged"
@@ -127,8 +121,8 @@
                             <MenuItem Header="Duplicate" Click="DuplicateMenuItem_Click"/>
                             <MenuItem Header="Delete" Click="DeleteMenuItem_Click"/>
                             <Separator/>
-                            <!-- Only meaningful (and only shown) for a favorite while the
-                                 favorites filter is active — see ResultsList_ContextMenuOpening. -->
+                            <!-- Only shown when the right-clicked row is itself a favorite —
+                                 see ResultsListContextMenu_Opened. -->
                             <MenuItem x:Name="MoveUpMenuItem" Header="Move Up" Click="MoveUpMenuItem_Click"/>
                             <MenuItem x:Name="MoveDownMenuItem" Header="Move Down" Click="MoveDownMenuItem_Click"/>
                             <Separator x:Name="MoveSeparator"/>
@@ -162,24 +156,33 @@
                                     Margin="0,0,16,0">
                                 <Grid Margin="8,6">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
+                                    <!-- Drag handle — only a favorite is reorderable, so only
+                                         favorite rows get one. Roland's own question: "we need
+                                         to show a drag button... or not?" — yes, a hidden
+                                         "anywhere on the row" drag target isn't discoverable. -->
+                                    <ui:SymbolIcon x:Name="DragHandleIcon" Grid.Column="0" Symbol="ReOrderDotsVertical24" FontSize="15"
+                                                   Foreground="{StaticResource TextOnSurfaceMuted}" VerticalAlignment="Center"
+                                                   Margin="0,0,4,0" ToolTip="Drag to reorder favorites"
+                                                   Visibility="Collapsed"/>
+                                    <StackPanel Grid.Column="1">
                                         <TextBlock x:Name="NameText" Text="{Binding Snippet.Name}" Style="{StaticResource BodyStrongTextBlockStyle}"
                                                    Foreground="{StaticResource TextOnSurface}"/>
                                         <TextBlock x:Name="DescriptionText" Text="{Binding Snippet.Description}" Style="{StaticResource CaptionTextBlockStyle}"
                                                    Foreground="{StaticResource TextOnSurfaceMuted}" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
-                                    <TextBlock x:Name="ShortcutText" Grid.Column="1" Text="{Binding ShortcutLabel}" Style="{StaticResource CaptionTextBlockStyle}"
+                                    <TextBlock x:Name="ShortcutText" Grid.Column="2" Text="{Binding ShortcutLabel}" Style="{StaticResource CaptionTextBlockStyle}"
                                                Foreground="{StaticResource TextOnSurfaceMuted}"
                                                VerticalAlignment="Center" Margin="8,0,0,0"/>
                                     <!-- Always-visible favorite toggle — filled star = favorite.
                                          Foreground set explicitly (not inherited) since the
                                          selection trigger below inverts everything else to white. -->
-                                    <ui:Button x:Name="FavoriteRowButton" Grid.Column="2" Appearance="Transparent"
+                                    <ui:Button x:Name="FavoriteRowButton" Grid.Column="3" Appearance="Transparent"
                                                Padding="4" Margin="4,0,0,0" VerticalAlignment="Center"
                                                ToolTip="Toggle favorite" Click="FavoriteRowButton_Click">
                                         <ui:SymbolIcon x:Name="FavoriteIcon" Symbol="Star24" FontSize="15"
@@ -188,7 +191,7 @@
                                     <!-- Always-visible edit affordance — double-click still opens
                                          the editor too, but per Roland's ask that's a shortcut on
                                          top of this, not the only way to find it. -->
-                                    <ui:Button x:Name="EditRowButton" Grid.Column="3" Appearance="Transparent"
+                                    <ui:Button x:Name="EditRowButton" Grid.Column="4" Appearance="Transparent"
                                                Padding="4" Margin="4,0,0,0" VerticalAlignment="Center"
                                                ToolTip="Edit this snippet" Click="EditRowButton_Click">
                                         <ui:SymbolIcon Symbol="Edit24" FontSize="15"/>
@@ -206,6 +209,19 @@
                                          same-colored selected-row background — switch to white
                                          (still filled/outline-distinct) like everything else here. -->
                                     <Setter TargetName="FavoriteIcon" Property="Foreground" Value="White"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Snippet.IsFavorite}" Value="True">
+                                    <Setter TargetName="DragHandleIcon" Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                                <!-- Marks the boundary between the favorites section and the rest
+                                     of the (alphabetical) list — a thicker accent-colored bottom
+                                     border on the LAST favorite row, per Roland's "visually a bit
+                                     separated" ask. Only ever set when the search box is empty
+                                     (see ApplyFilter) since that's the only time this pinned
+                                     ordering is in effect at all. -->
+                                <DataTrigger Binding="{Binding IsLastFavoriteBeforeRest}" Value="True">
+                                    <Setter TargetName="RowBorder" Property="BorderThickness" Value="0,0,0,3"/>
+                                    <Setter TargetName="RowBorder" Property="BorderBrush" Value="{StaticResource Accent}"/>
                                 </DataTrigger>
                             </DataTemplate.Triggers>
                         </DataTemplate>

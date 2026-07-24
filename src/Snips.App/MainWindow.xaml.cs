@@ -17,7 +17,7 @@ using Snips.Interop.Paste;
 namespace Snips.App;
 
 /// <summary>One row in the picker list: a snippet plus its shortcut's display label, if any.</summary>
-internal sealed record PickerRow(Snippet Snippet, string? ShortcutLabel);
+internal sealed record PickerRow(Snippet Snippet, string? ShortcutLabel, bool IsLastFavoriteBeforeRest = false);
 
 public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 {
@@ -31,7 +31,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private bool _copyDefault = true;
     private bool _pasteDefault;
     private bool _closeAfterApplyDefault;
-    private bool _favoritesFilterDefault;
     private Point? _dragStartPoint;
     private PickerRow? _dragCandidateRow;
     private string _languageCode = "en";
@@ -69,7 +68,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         CopyCheckBox.IsChecked = _copyDefault;
         PasteCheckBox.IsChecked = _pasteDefault;
         CloseAfterApplyCheckBox.IsChecked = _closeAfterApplyDefault;
-        FavoritesFilterToggle.IsChecked = _favoritesFilterDefault;
         SearchBox.Focus();
     }
 
@@ -101,7 +99,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _copyDefault = await _database.Settings.GetAsync("CopyToClipboardDefault") != "0";
         _pasteDefault = await _database.Settings.GetAsync("PasteIntoActiveAppDefault") == "1";
         _closeAfterApplyDefault = await _database.Settings.GetAsync("CloseAfterApplyDefault") == "1";
-        _favoritesFilterDefault = await _database.Settings.GetAsync("FavoritesFilterDefault") == "1";
         await RefreshLanguageAsync();
         ApplyFilter();
         RefreshTrayMenu();
@@ -145,13 +142,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (_database is not null)
             _ = _database.Settings.SetAsync("CloseAfterApplyDefault", CloseAfterApplyCheckBox.IsChecked == true ? "1" : "0");
-    }
-
-    private void FavoritesFilterToggle_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_database is not null)
-            _ = _database.Settings.SetAsync("FavoritesFilterDefault", FavoritesFilterToggle.IsChecked == true ? "1" : "0");
-        ApplyFilter();
     }
 
     /// <summary>Toggles favorite status for whichever row's star was clicked, independent of
@@ -223,27 +213,43 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             await RefreshListAsync();
     }
 
-    /// <summary>Favorites-only shows the user's own drag order (ties broken by name so a
-    /// freshly-favorited snippet doesn't land somewhere random); otherwise everything sorts
-    /// alphabetically. SnippetSearch's own doc comment confirms it trusts this order verbatim
-    /// when the search box is empty — it only re-ranks once there's an actual query, at which
-    /// point relevance reasonably wins over either ordering. Roland, 2026-07-24.</summary>
-    private IEnumerable<Snippet> OrderedSourceSnippets() =>
-        FavoritesFilterToggle.IsChecked == true
-            ? _allSnippets.Where(s => s.IsFavorite)
-                .OrderBy(s => s.FavoriteSortOrder)
-                .ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
-            : _allSnippets.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase);
+    /// <summary>Favorites always come first, in the user's own drag order (ties broken by name
+    /// so a freshly-favorited snippet doesn't land somewhere random); everyone else follows
+    /// alphabetically. There's no separate filtered view anymore — Roland's redesign (2026-07-24)
+    /// replaced "hide everything except favorites" with "pin favorites to the top of the always-
+    /// full list," specifically to avoid a state where the list can appear completely empty.
+    /// SnippetSearch's own doc comment confirms it trusts this order verbatim when the search
+    /// box is empty — it only re-ranks once there's an actual query, at which point relevance
+    /// reasonably wins over pinning.</summary>
+    private IEnumerable<Snippet> OrderedSourceSnippets()
+    {
+        var favorites = _allSnippets.Where(s => s.IsFavorite)
+            .OrderBy(s => s.FavoriteSortOrder).ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase);
+        var rest = _allSnippets.Where(s => !s.IsFavorite).OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase);
+        return favorites.Concat(rest);
+    }
 
     private void ApplyFilter()
     {
         var previouslySelectedId = GetSelectedSnippet()?.Id;
+        var isUnfiltered = string.IsNullOrEmpty(SearchBox.Text);
 
         var matches = SnippetSearch.Search(OrderedSourceSnippets(), SearchBox.Text, DateTime.UtcNow)
             .Select(m => new PickerRow(
                 m.Snippet,
                 _shortcutLabelsBySnippetId.GetValueOrDefault(m.Snippet.Id)))
             .ToList();
+
+        // Only meaningful (and only computed) when the pinned favorites-then-rest order above is
+        // actually what's showing — an active search re-ranks by relevance instead, at which
+        // point "last favorite" has no coherent meaning.
+        if (isUnfiltered)
+        {
+            var lastFavoriteIndex = matches.FindLastIndex(r => r.Snippet.IsFavorite);
+            if (lastFavoriteIndex >= 0 && lastFavoriteIndex < matches.Count - 1)
+                matches[lastFavoriteIndex] = matches[lastFavoriteIndex] with { IsLastFavoriteBeforeRest = true };
+        }
+
         ResultsList.ItemsSource = matches;
 
         if (matches.Count == 0)
@@ -341,9 +347,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (ItemsControl.ContainerFromElement(ResultsList, (DependencyObject)e.OriginalSource) is ListBoxItem { IsSelected: true })
             _ = RefreshPreviewAsync();
 
-        // Recorded regardless of favorites-filter state so ResultsList_PreviewMouseMove has a
-        // baseline to measure from — the filter check itself happens at drag-start time instead,
-        // so toggling the filter mid-click can't leave a stale drag armed.
+        // Recorded for any row, favorite or not — the "is this actually draggable" check happens
+        // at drag-start time in ResultsList_PreviewMouseMove instead.
         if (GetRowUnderMouse(e.OriginalSource) is { } row)
         {
             _dragStartPoint = e.GetPosition(ResultsList);
@@ -354,14 +359,14 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     /// <summary>Starts a drag once the mouse has genuinely moved (not just clicked) past the
     /// system's drag threshold — distinguishes an intentional drag from a click that happens to
     /// land on FavoriteRowButton/EditRowButton, which would otherwise never get their own Click
-    /// event if a drag started on every mouse-down. Only meaningful in the favorites-filtered
-    /// view; see the XAML comment on ResultsList for why.</summary>
+    /// event if a drag started on every mouse-down. Only a favorite row is draggable at all —
+    /// there's no meaningful "position" to drag a non-favorite to.</summary>
     private void ResultsList_PreviewMouseMove(object sender, MouseEventArgs e)
     {
         if (e.LeftButton != MouseButtonState.Pressed || _dragStartPoint is not { } start || _dragCandidateRow is not { } row)
             return;
 
-        if (FavoritesFilterToggle.IsChecked != true)
+        if (!row.Snippet.IsFavorite)
             return;
 
         var current = e.GetPosition(ResultsList);
@@ -377,16 +382,27 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     /// <summary>Renumbers every favorite 0..N-1 in the new order and persists all of them —
     /// favorites are a short list (Roland: "5-10, not so much for all of the snippets"), so
     /// rewriting the whole set on every reorder costs nothing real and avoids sort-value drift
-    /// that incremental swapping would eventually accumulate.</summary>
+    /// that incremental swapping would eventually accumulate. Wrapped defensively: a reorder
+    /// that fails partway through must still refresh from the database rather than leave the
+    /// in-memory list showing an order that was never actually persisted.</summary>
     private async Task ReorderFavoritesAsync(List<Snippet> newOrder)
     {
-        for (var i = 0; i < newOrder.Count; i++)
-            newOrder[i].FavoriteSortOrder = i;
+        try
+        {
+            for (var i = 0; i < newOrder.Count; i++)
+                newOrder[i].FavoriteSortOrder = i;
 
-        foreach (var favorite in newOrder)
-            await _database.Snippets.UpdateAsync(favorite);
-
-        await RefreshListAsync();
+            foreach (var favorite in newOrder)
+                await _database.Snippets.UpdateAsync(favorite);
+        }
+        catch (Exception ex)
+        {
+            SetStatus(StatusText, $"Couldn't save the new order: {ex.Message}");
+        }
+        finally
+        {
+            await RefreshListAsync();
+        }
     }
 
     private List<Snippet> CurrentFavoritesInOrder() =>
@@ -394,11 +410,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void ResultsList_Drop(object sender, DragEventArgs e)
     {
-        if (FavoritesFilterToggle.IsChecked != true || e.Data.GetData(typeof(PickerRow)) is not PickerRow draggedRow)
+        if (e.Data.GetData(typeof(PickerRow)) is not PickerRow draggedRow || !draggedRow.Snippet.IsFavorite)
             return;
 
-        if (GetRowUnderMouse(e.OriginalSource)?.Snippet.Id is not { } targetId || targetId == draggedRow.Snippet.Id)
+        if (GetRowUnderMouse(e.OriginalSource) is not { } targetRow || !targetRow.Snippet.IsFavorite || targetRow.Snippet.Id == draggedRow.Snippet.Id)
             return;
+
+        var targetId = targetRow.Snippet.Id;
 
         var favorites = CurrentFavoritesInOrder();
         var dragged = favorites.FirstOrDefault(s => s.Id == draggedRow.Snippet.Id);
@@ -423,16 +441,18 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     }
 
     /// <summary>Move Up/Down: a fully keyboard/menu-driven reorder that works identically to
-    /// dragging, for anyone who'd rather not (or can't reliably) drag with a mouse.</summary>
+    /// dragging, for anyone who'd rather not (or can't reliably) drag with a mouse. Shown
+    /// whenever the right-clicked row is ITSELF a favorite — there's no separate filtered view
+    /// to gate this on anymore.</summary>
     private void ResultsListContextMenu_Opened(object sender, RoutedEventArgs e)
     {
-        var isFavoritesView = FavoritesFilterToggle.IsChecked == true;
         var selected = GetSelectedSnippet();
-        var favorites = isFavoritesView ? CurrentFavoritesInOrder() : [];
-        var index = selected is null ? -1 : favorites.FindIndex(s => s.Id == selected.Id);
+        var isFavoriteSelected = selected?.IsFavorite == true;
+        var favorites = isFavoriteSelected ? CurrentFavoritesInOrder() : [];
+        var index = isFavoriteSelected ? favorites.FindIndex(s => s.Id == selected!.Id) : -1;
 
         MoveUpMenuItem.Visibility = MoveDownMenuItem.Visibility = MoveSeparator.Visibility =
-            isFavoritesView ? Visibility.Visible : Visibility.Collapsed;
+            isFavoriteSelected ? Visibility.Visible : Visibility.Collapsed;
         MoveUpMenuItem.IsEnabled = index > 0;
         MoveDownMenuItem.IsEnabled = index >= 0 && index < favorites.Count - 1;
     }
