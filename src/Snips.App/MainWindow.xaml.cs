@@ -90,15 +90,36 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     }
 
     /// <summary>
-    /// Triggered directly by a per-snippet hotkey (SPEC.md §5.8) — no picker window involved at
-    /// all. Always copies and pastes: there's no open UI to read checkbox state from, and the
-    /// whole point of a per-snippet shortcut is to act immediately.
+    /// Triggered directly by a per-snippet hotkey (SPEC.md §5.8) — no picker window needs to be
+    /// open for this at all, and in the common case (fired from another app while Snips sits
+    /// minimised in the tray) none is. Always copies and pastes: the whole point of a per-snippet
+    /// shortcut is to act immediately, without requiring the picker.
+    ///
+    /// Roland's report: firing a hotkey while the picker HAPPENED to be open in the background
+    /// made it vanish even with "Close this window after applying" unchecked. Root cause —
+    /// ApplySnippetAsync unconditionally Hide()s if IsVisible (needed so the paste target can
+    /// actually receive foreground), but unlike ApplySelectedAsync's Enter-key path, nothing
+    /// here ever restored it afterward; the checkbox was never even read. It's not "no open UI
+    /// to read from" as the old comment here claimed — the checkbox is a live property on this
+    /// same window regardless of whether it happens to be visible right now.
     /// </summary>
     public async void ApplySnippetByHotkey(string snippetId)
     {
         var snippet = await _database.Snippets.GetByIdAsync(snippetId);
-        if (snippet is not null)
-            await ApplySnippetAsync(snippet, copy: true, paste: true, statusTarget: null);
+        if (snippet is null)
+            return;
+
+        var wasVisible = IsVisible;
+        var applied = await ApplySnippetAsync(snippet, copy: true, paste: true, statusTarget: null);
+
+        // Only restore visibility if the picker was actually open before this fired — the common
+        // "invisible from another app" case correctly leaves nothing to restore — and only when
+        // the user hasn't opted into auto-close via the checkbox, same convention as Enter's.
+        if (applied && wasVisible && !IsVisible && CloseAfterApplyCheckBox.IsChecked != true)
+        {
+            Show();
+            Activate();
+        }
     }
 
     private async Task RefreshListAsync()

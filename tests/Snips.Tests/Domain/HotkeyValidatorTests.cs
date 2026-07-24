@@ -41,4 +41,23 @@ public class HotkeyValidatorTests
     {
         Assert.False(HotkeyValidator.IsValid(0, 0x4D));
     }
+
+    [Theory]
+    [InlineData(HotkeyValidator.ModControl | HotkeyValidator.ModAlt, 0x31)] // Ctrl+Alt+1
+    [InlineData(HotkeyValidator.ModControl | HotkeyValidator.ModAlt, 0x4D)] // Ctrl+Alt+M
+    public void CtrlAltWithoutShift_OnAPrintableKey_IsFlaggedAsAltGrRisk(int modifiers, int vk)
+    {
+        Assert.True(HotkeyValidator.IsLikelyAltGrCollision(modifiers, vk));
+        // Advisory only — must not affect whether the combo is actually usable.
+        Assert.True(HotkeyValidator.IsValid(modifiers, vk));
+    }
+
+    [Theory]
+    [InlineData(HotkeyValidator.ModControl | HotkeyValidator.ModAlt | HotkeyValidator.ModShift, 0x31)] // + Shift disambiguates from AltGr
+    [InlineData(HotkeyValidator.ModControl | HotkeyValidator.ModShift, 0x31)] // no Alt at all
+    [InlineData(HotkeyValidator.ModControl | HotkeyValidator.ModAlt, 0x70)] // Ctrl+Alt+F1 — F-keys aren't AltGr compositions
+    public void CombosThatArentPlainCtrlAltOnAPrintableKey_AreNotFlagged(int modifiers, int vk)
+    {
+        Assert.False(HotkeyValidator.IsLikelyAltGrCollision(modifiers, vk));
+    }
 }

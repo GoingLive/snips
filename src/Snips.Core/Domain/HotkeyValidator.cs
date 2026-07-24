@@ -50,4 +50,16 @@ public static class HotkeyValidator
 
     public static bool IsValid(int modifiers, int virtualKey) =>
         HasRequiredModifierOrIsFunctionKey(modifiers, virtualKey) && !IsReserved(modifiers, virtualKey);
+
+    /// <summary>Ctrl+Alt (with no Shift) is what a physical AltGr key actually sends on most
+    /// non-US keyboard layouts — Windows cannot distinguish "the user pressed Ctrl and Alt
+    /// separately" from "the user pressed AltGr." On many of those layouts (German, French,
+    /// Italian, Spanish among them) the same combination is already bound to typing a character
+    /// (e.g. Swiss German AltGr+2 types '@'), which can race against or defeat a global hotkey
+    /// registered on exactly that combo. This can only ever be advisory, never a hard block:
+    /// whether it's actually a problem depends on the user's own physical keyboard layout, which
+    /// isn't something Snips can know from the virtual key alone. An F-key is exempt — AltGr
+    /// compositions are for printable characters, never function keys.</summary>
+    public static bool IsLikelyAltGrCollision(int modifiers, int virtualKey) =>
+        modifiers == (ModControl | ModAlt) && !IsFunctionKey(virtualKey);
 }

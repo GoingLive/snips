@@ -73,6 +73,12 @@ public partial class ShortcutCaptureWindow : Wpf.Ui.Controls.FluentWindow
         {
             HideError();
         }
+
+        // Independent of the error/valid state above — advisory, so it can show alongside a
+        // perfectly valid, savable combo.
+        WarningText.Visibility = HotkeyValidator.IsLikelyAltGrCollision(modifiers, virtualKey)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private static bool IsPureModifierKey(Key key) => key is
