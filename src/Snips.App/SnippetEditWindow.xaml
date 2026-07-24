@@ -48,6 +48,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -63,18 +64,42 @@
                 </Grid>
                 <TextBox Grid.Row="1" x:Name="NameBox" Margin="0,0,0,12"/>
 
-                <TextBlock Grid.Row="2" Text="Description" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,4"/>
-                <TextBox Grid.Row="3" x:Name="DescriptionBox" Margin="0,0,0,12"/>
+                <!-- Optional per-snippet shortcut (SPEC.md §5.8), Roland's ask: reachable from
+                     the editor itself, not only the list's right-click menu. Persists
+                     immediately through ShortcutCaptureWindow (the same dialog and repository
+                     call the context menu already used and tested), independent of this
+                     window's own Save/Cancel — so it needs a real snippet ID to attach to.
+                     Disabled rather than hidden for a brand-new, not-yet-saved snippet (visible,
+                     explained affordance over a hidden one, per Roland's own UX principle) —
+                     save the snippet first, then it becomes reachable from here or the row. -->
+                <Grid Grid.Row="2" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Shortcut:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Grid.Column="1" x:Name="ShortcutDisplayText" Text="None" VerticalAlignment="Center"
+                               Foreground="#8A6B4A"/>
+                    <ui:Button Grid.Column="2" x:Name="AssignShortcutButton" Content="Assign…" Appearance="Secondary"
+                               Padding="8,4" Margin="0,0,8,0" Click="AssignShortcutButton_Click"/>
+                    <ui:Button Grid.Column="3" x:Name="ClearShortcutButton" Content="Clear" Appearance="Secondary"
+                               Padding="8,4" Click="ClearShortcutButton_Click" Visibility="Collapsed"/>
+                </Grid>
 
-                <TextBlock Grid.Row="4" Text="Body (plain text)" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,4"/>
-                <TextBox Grid.Row="5" x:Name="BodyBox" Margin="0,0,0,12"
+                <TextBlock Grid.Row="3" Text="Description" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,4"/>
+                <TextBox Grid.Row="4" x:Name="DescriptionBox" Margin="0,0,0,12"/>
+
+                <TextBlock Grid.Row="5" Text="Body (plain text)" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,4"/>
+                <TextBox Grid.Row="6" x:Name="BodyBox" Margin="0,0,0,12"
                          AcceptsReturn="True" TextWrapping="Wrap"
                          VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
 
-                <TextBlock Grid.Row="6" x:Name="ErrorText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="#B00020" Margin="0,0,0,8"
+                <TextBlock Grid.Row="7" x:Name="ErrorText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="#B00020" Margin="0,0,0,8"
                            TextWrapping="Wrap" Visibility="Collapsed"/>
 
-                <Grid Grid.Row="7">
+                <Grid Grid.Row="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>

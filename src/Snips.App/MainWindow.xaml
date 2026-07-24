@@ -29,6 +29,24 @@
         <SolidColorBrush x:Key="TextControlButtonForeground" Color="#E0A800"/>
         <SolidColorBrush x:Key="SubtleFillColorSecondaryBrush" Color="#FFF3D6"/>
         <SolidColorBrush x:Key="SubtleFillColorTertiaryBrush" Color="#FFE9B3"/>
+
+        <!-- The real fix for "scrollbar overlaps the row" (reported repeatedly, finally
+             root-caused by a live zoomed screenshot of the running app): it was never the
+             scrollbar thumb itself — WPF-UI's own ListBoxItem control template paints ITS OWN
+             selected/hover background on an internal Border named "Border", edge-to-edge with no
+             margin at all, completely independent of our custom RowBorder (which does have the
+             16px scrollbar-clearance margin and is what DataTemplate.Triggers below actually
+             drive). That inner background was rendering the full row width, sitting behind our
+             margined content and visibly reaching right up to the scrollbar — a second,
+             unintended orange layer peeking out past the one we could see and control. Setting
+             Background via an ItemContainerStyle Setter does NOT reach it either (confirmed
+             separately) since ListBoxItem's IsSelected/IsMouseOver triggers set that Border's
+             Background directly, overriding any Style-level Setter. Redefining these two
+             DynamicResource keys at window scope is what actually reaches it — WPF resolves
+             DynamicResource lookups against the nearest ancestor that defines the key, and
+             ListBoxItem's template reads them by name rather than a hardcoded brush. -->
+        <SolidColorBrush x:Key="ListBoxItemSelectedBackgroundThemeBrush" Color="Transparent"/>
+        <SolidColorBrush x:Key="MenuBarItemBackgroundSelected" Color="Transparent"/>
     </ui:FluentWindow.Resources>
 
     <Grid>

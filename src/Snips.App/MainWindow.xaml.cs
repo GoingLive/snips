@@ -746,7 +746,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async Task NewSnippetAsync()
     {
-        var dialog = new SnippetEditWindow { Owner = this };
+        var dialog = new SnippetEditWindow(shortcuts: _database.Shortcuts) { Owner = this };
         if (dialog.ShowDialog() != true)
             return;
 
@@ -787,7 +787,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (snippet is null)
             return;
 
-        var dialog = new SnippetEditWindow(snippet.Name, snippet.Description, snippet.PlainText, snippet.IsFavorite) { Owner = this };
+        var existingShortcut = await _database.Shortcuts.GetBySnippetIdAsync(snippet.Id);
+        var dialog = new SnippetEditWindow(
+            snippet.Name, snippet.Description, snippet.PlainText, snippet.IsFavorite,
+            _database.Shortcuts, snippet.Id, existingShortcut) { Owner = this };
         var saved = dialog.ShowDialog();
 
         if (dialog.DeleteRequested)
@@ -799,7 +802,14 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         if (saved != true)
+        {
+            // Even on Cancel, a shortcut assigned/cleared from within the editor already
+            // persisted directly (it isn't part of this dialog's own Save/Cancel) — refresh so
+            // the row's shortcut label reflects it instead of going stale until some other
+            // refresh happens to occur later.
+            await RefreshListAsync();
             return;
+        }
 
         snippet.Name = dialog.EnteredName;
         snippet.Description = dialog.EnteredDescription;

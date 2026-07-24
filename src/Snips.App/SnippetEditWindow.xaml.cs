@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Snips.Core.Domain;
+using Snips.Core.Repositories;
 using Snips.Core.Templates;
 
 namespace Snips.App;
@@ -52,6 +54,10 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
         return [.. CuratedExamples, .. fromCatalog];
     }
 
+    private readonly IShortcutRepository? _shortcuts;
+    private readonly string? _snippetId;
+    private Shortcut? _currentShortcut;
+
     public string EnteredName => NameBox.Text.Trim();
     public string EnteredDescription => DescriptionBox.Text.Trim();
     public string EnteredBody => BodyBox.Text;
@@ -62,7 +68,14 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
     /// apart from "delete this" even though both leave ShowDialog() returning false/null.</summary>
     public bool DeleteRequested { get; private set; }
 
-    public SnippetEditWindow(string? name = null, string? description = null, string? body = null, bool isFavorite = false)
+    /// <summary>
+    /// shortcuts/snippetId are omitted for a brand-new snippet (no ID exists yet to attach a
+    /// shortcut to — see the Shortcut row's own comment in the XAML) and required to make the
+    /// row's Assign/Clear buttons functional when editing an existing one.
+    /// </summary>
+    public SnippetEditWindow(
+        string? name = null, string? description = null, string? body = null, bool isFavorite = false,
+        IShortcutRepository? shortcuts = null, string? snippetId = null, Shortcut? existingShortcut = null)
     {
         InitializeComponent();
         NameBox.Text = name ?? string.Empty;
@@ -72,7 +85,48 @@ public partial class SnippetEditWindow : Wpf.Ui.Controls.FluentWindow
         VariableReferenceList.ItemsSource = VariableReference;
         // Only an existing snippet (opened via Edit) can be deleted — New passes no name.
         DeleteButton.Visibility = name is not null ? Visibility.Visible : Visibility.Collapsed;
+
+        _shortcuts = shortcuts;
+        _snippetId = snippetId;
+        _currentShortcut = existingShortcut;
+        AssignShortcutButton.IsEnabled = snippetId is not null;
+        AssignShortcutButton.ToolTip = snippetId is null
+            ? "Save the snippet first, then a shortcut can be assigned here or from the list."
+            : null;
+        UpdateShortcutDisplay();
+
         Loaded += (_, _) => NameBox.Focus();
+    }
+
+    private void UpdateShortcutDisplay()
+    {
+        ShortcutDisplayText.Text = _currentShortcut is null
+            ? "None"
+            : HotkeyFormatting.Format(_currentShortcut.Modifiers, _currentShortcut.VirtualKey);
+        ClearShortcutButton.Visibility = _currentShortcut is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private async void AssignShortcutButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_shortcuts is null || _snippetId is null)
+            return;
+
+        var dialog = new ShortcutCaptureWindow(EnteredName, _snippetId, _shortcuts, _currentShortcut) { Owner = this };
+        if (dialog.ShowDialog() != true)
+            return;
+
+        _currentShortcut = await _shortcuts.GetBySnippetIdAsync(_snippetId);
+        UpdateShortcutDisplay();
+    }
+
+    private async void ClearShortcutButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_shortcuts is null || _snippetId is null)
+            return;
+
+        await _shortcuts.RemoveAsync(_snippetId);
+        _currentShortcut = null;
+        UpdateShortcutDisplay();
     }
 
     private void DeleteButton_Click(object sender, RoutedEventArgs e)
