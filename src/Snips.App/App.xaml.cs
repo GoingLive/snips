@@ -20,13 +20,20 @@ public partial class App : Application
     // Tried in order at startup until one registers. Ctrl+Alt+Space is claimed by enough
     // other clipboard/snippet/IME tools that it needs backups rather than a single swap —
     // a real per-user rebind UI is Phase 6 (SPEC.md §5.8); this is the stopgap until then.
-    private static readonly (HotKeyModifiers Modifiers, uint VirtualKey, string Label)[] HotkeyCandidates =
+    // No stored Label here (there used to be one, hardcoded in English) — HotKeyModifiers'
+    // numeric values are identical to HotkeyValidator's Mod* constants (both mirror the raw
+    // Win32 MOD_* bits), so HotkeyFormatting.Format(candidate) produces the same label on
+    // demand, correctly localized, instead of two independent copies that could drift.
+    private static readonly (HotKeyModifiers Modifiers, uint VirtualKey)[] HotkeyCandidates =
     [
-        (HotKeyModifiers.Control | HotKeyModifiers.Alt, VK_SPACE, "Ctrl+Alt+Space"),
-        (HotKeyModifiers.Control | HotKeyModifiers.Alt, VK_S, "Ctrl+Alt+S"),
-        (HotKeyModifiers.Control | HotKeyModifiers.Shift, VK_SPACE, "Ctrl+Shift+Space"),
-        (HotKeyModifiers.Control | HotKeyModifiers.Alt, VK_BACKTICK, "Ctrl+Alt+`"),
+        (HotKeyModifiers.Control | HotKeyModifiers.Alt, VK_SPACE),
+        (HotKeyModifiers.Control | HotKeyModifiers.Alt, VK_S),
+        (HotKeyModifiers.Control | HotKeyModifiers.Shift, VK_SPACE),
+        (HotKeyModifiers.Control | HotKeyModifiers.Alt, VK_BACKTICK),
     ];
+
+    private static string FormatCandidateLabel((HotKeyModifiers Modifiers, uint VirtualKey) candidate) =>
+        HotkeyFormatting.Format((int)candidate.Modifiers, (int)candidate.VirtualKey);
 
     private const string SingleInstanceMutexName = "Local\\Snips.SingleInstance";
     private const string ShowRequestEventName = "Local\\Snips.ShowRequest";
@@ -48,6 +55,12 @@ public partial class App : Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
+        // Safe baseline before the real, persisted language is known (that needs the database,
+        // opened a few lines down) — guarantees UiStrings.Get() always resolves to real English
+        // text rather than a raw resource key, even for an exception this early. Upgraded to the
+        // user's actual language below once it's available.
+        UiStrings.Apply("en");
+
         // No global handler existed anywhere before this (flagged in a full-codebase review,
         // 2026-07-24). The specific crash it caught — a malformed date/filter format string
         // reaching an unguarded .ToString(format) — is now fixed at the source in
@@ -60,8 +73,8 @@ public partial class App : Application
         DispatcherUnhandledException += (_, ex) =>
         {
             MessageBox.Show(
-                $"Snips hit an unexpected error and stayed open, but this snippet or action may not have worked:\n\n{ex.Exception.Message}",
-                "Snips", MessageBoxButton.OK, MessageBoxImage.Warning);
+                UiStrings.Get("Str_UnhandledExceptionFormat", ex.Exception.Message),
+                UiStrings.Get("Str_AppName"), MessageBoxButton.OK, MessageBoxImage.Warning);
             ex.Handled = true;
         };
 
@@ -89,7 +102,15 @@ public partial class App : Application
 
         var dbPath = ResolveDatabasePath();
         _database = await SnipsDatabase.OpenAsync(dbPath);
-        await SeedExampleSnippetsIfEmptyAsync(_database);
+
+        var languageCode = await _database.Settings.GetAsync("Language") ?? "en";
+
+        // Must happen before any window is constructed — every XAML string reference is
+        // {DynamicResource Str_X}, resolved against Application.Resources at the moment each
+        // control is realized, so the right dictionary needs to already be merged in.
+        UiStrings.Apply(languageCode);
+
+        await SeedExampleSnippetsIfEmptyAsync(_database, languageCode);
         await LanguagePackSeedData.SeedIfEmptyAsync(_database.VariableTranslations);
 
         // Must exist before the window so WM_HOTKEY delivery (via SetWinEventHook,
@@ -103,27 +124,23 @@ public partial class App : Application
         var boundLabel = RegisterFirstAvailableHotkey();
 
         _mainWindow.TrayIcon.ToolTipText = boundLabel is null
-            ? $"Snips, {BuildIdentifier.Value} (no hotkey bound — open from this tray icon)"
-            : $"Snips, {BuildIdentifier.Value} — {boundLabel} to open";
+            ? UiStrings.Get("Str_TrayTooltipNoHotkeyFormat", BuildIdentifier.Value)
+            : UiStrings.Get("Str_TrayTooltipWithHotkeyFormat", BuildIdentifier.Value, boundLabel);
 
         if (boundLabel is null)
         {
             MessageBox.Show(
-                "All of Snips' candidate hotkeys (Ctrl+Alt+Space, Ctrl+Alt+S, Ctrl+Shift+Space, " +
-                "Ctrl+Alt+`) are already claimed by other applications. Open Snips from the tray " +
-                "icon instead until a rebindable Settings view exists.",
-                "Snips", MessageBoxButton.OK, MessageBoxImage.Information);
+                UiStrings.Get("Str_AllHotkeysClaimedFormat", string.Join(", ", HotkeyCandidates.Select(FormatCandidateLabel))),
+                UiStrings.Get("Str_AppName"), MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        else if (boundLabel != HotkeyCandidates[0].Label && await _database.Settings.GetAsync("HotkeyFallbackNoticeShown") is null)
+        else if (boundLabel != FormatCandidateLabel(HotkeyCandidates[0]) && await _database.Settings.GetAsync("HotkeyFallbackNoticeShown") is null)
         {
             // Shown once ever, not on every launch — this was genuinely nagging Roland during
             // repeated dev-cycle relaunches and reads as "the app is broken" rather than as the
             // one-time heads-up it's meant to be.
             MessageBox.Show(
-                $"Ctrl+Alt+Space is already in use by another application, so Snips bound " +
-                $"{boundLabel} instead. Press {boundLabel} to open the picker. " +
-                "(This notice won't be shown again.)",
-                "Snips", MessageBoxButton.OK, MessageBoxImage.Information);
+                UiStrings.Get("Str_HotkeyFallbackNoticeFormat", boundLabel),
+                UiStrings.Get("Str_AppName"), MessageBoxButton.OK, MessageBoxImage.Information);
             await _database.Settings.SetAsync("HotkeyFallbackNoticeShown", "1");
         }
 
@@ -189,10 +206,8 @@ public partial class App : Application
         if (failedSnippetNames.Count > 0)
         {
             MessageBox.Show(
-                "These snippets have a shortcut assigned, but the combination is already in " +
-                $"use by another application: {string.Join(", ", failedSnippetNames)}. Define a " +
-                "different shortcut for them from the picker's right-click menu.",
-                "Snips", MessageBoxButton.OK, MessageBoxImage.Information);
+                UiStrings.Get("Str_PerSnippetHotkeyFailedFormat", string.Join(", ", failedSnippetNames)),
+                UiStrings.Get("Str_AppName"), MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 
@@ -202,7 +217,7 @@ public partial class App : Application
         {
             var id = _hotKeyManager!.Register(candidate.Modifiers, candidate.VirtualKey, _mainWindow!.ShowAndFocus);
             if (id is not null)
-                return candidate.Label;
+                return FormatCandidateLabel(candidate);
         }
 
         return null;
@@ -230,24 +245,21 @@ public partial class App : Application
     /// First-run only (empty library): a handful of examples that actually exercise the
     /// variable engine, so opening the picker for the first time shows something working
     /// rather than an empty list. SPEC.md §15 Q5 calls for 8–10 eventually; this is a subset.
+    ///
+    /// Translated into German/French/Italian too — unlike the app's own UI chrome, this is
+    /// snippet CONTENT (the same category as anything a user could type themselves), but for a
+    /// first-run "gift" experience the very first thing a new recipient sees shouldn't be
+    /// permanently English just because the rest of the app is localized. Uses the plain English
+    /// master variable keys in every language ({{date}}, {{user}}, ...) rather than assuming any
+    /// particular variable-name translation is already populated — those always work regardless
+    /// of what the recipient later customizes in Settings -&gt; "Manage translations…".
     /// </summary>
-    private static async Task SeedExampleSnippetsIfEmptyAsync(SnipsDatabase database)
+    private static async Task SeedExampleSnippetsIfEmptyAsync(SnipsDatabase database, string languageCode)
     {
         if ((await database.Snippets.ListAsync()).Count > 0)
             return;
 
-        var examples = new (string Name, string Description, string Body)[]
-        {
-            ("Meeting follow-up", "Sent after a client call",
-                "Dear {{input:Name}},\n\nThank you for your time today, {{date}}. I'll follow up " +
-                "with next steps by {{date:+3d:dd.MM.yyyy}}.\n\nBest regards,\n{{user}}"),
-            ("Email signature", "Quick plain-text signature",
-                "{{user}}\n{{useremail}}\n{{date}}"),
-            ("Bug report template", "Starting point for a bug report",
-                "Environment: {{os}} ({{osversion}})\nReported by: {{user}} on {{date}}\n\n" +
-                "Steps to reproduce:\n1. \n2. \n\nExpected:\nActual:"),
-            ("Quick timestamp", "Paste the current date and time", "{{datetime}}"),
-        };
+        var examples = ExampleSnippetsByLanguage.GetValueOrDefault(languageCode, ExampleSnippetsByLanguage["en"]);
 
         foreach (var (name, description, body) in examples)
         {
@@ -265,4 +277,56 @@ public partial class App : Application
             });
         }
     }
+
+    private static readonly Dictionary<string, (string Name, string Description, string Body)[]> ExampleSnippetsByLanguage = new()
+    {
+        ["en"] =
+        [
+            ("Meeting follow-up", "Sent after a client call",
+                "Dear {{input:Name}},\n\nThank you for your time today, {{date}}. I'll follow up " +
+                "with next steps by {{date:+3d:dd.MM.yyyy}}.\n\nBest regards,\n{{user}}"),
+            ("Email signature", "Quick plain-text signature",
+                "{{user}}\n{{useremail}}\n{{date}}"),
+            ("Bug report template", "Starting point for a bug report",
+                "Environment: {{os}} ({{osversion}})\nReported by: {{user}} on {{date}}\n\n" +
+                "Steps to reproduce:\n1. \n2. \n\nExpected:\nActual:"),
+            ("Quick timestamp", "Paste the current date and time", "{{datetime}}"),
+        ],
+        ["de"] =
+        [
+            ("Nachfassen nach einem Meeting", "Wird nach einem Kundengespräch verschickt",
+                "Liebe/r {{input:Name}},\n\nVielen Dank für Ihre Zeit heute, {{date}}. Ich melde mich " +
+                "mit den nächsten Schritten bis {{date:+3d:dd.MM.yyyy}}.\n\nFreundliche Grüsse\n{{user}}"),
+            ("E-Mail-Signatur", "Kurze Klartext-Signatur",
+                "{{user}}\n{{useremail}}\n{{date}}"),
+            ("Fehlerbericht-Vorlage", "Ausgangspunkt für einen Fehlerbericht",
+                "Umgebung: {{os}} ({{osversion}})\nGemeldet von: {{user}} am {{date}}\n\n" +
+                "Schritte zur Reproduktion:\n1. \n2. \n\nErwartet:\nTatsächlich:"),
+            ("Schneller Zeitstempel", "Fügt das aktuelle Datum und die Uhrzeit ein", "{{datetime}}"),
+        ],
+        ["fr"] =
+        [
+            ("Suivi de réunion", "Envoyé après un appel client",
+                "Cher/Chère {{input:Name}},\n\nMerci pour votre temps aujourd'hui, {{date}}. Je reviendrai " +
+                "vers vous avec les prochaines étapes d'ici le {{date:+3d:dd.MM.yyyy}}.\n\nCordialement,\n{{user}}"),
+            ("Signature e-mail", "Signature rapide en texte brut",
+                "{{user}}\n{{useremail}}\n{{date}}"),
+            ("Modèle de rapport de bug", "Point de départ pour un rapport de bug",
+                "Environnement : {{os}} ({{osversion}})\nSignalé par : {{user}} le {{date}}\n\n" +
+                "Étapes pour reproduire :\n1. \n2. \n\nAttendu :\nRéel :"),
+            ("Horodatage rapide", "Colle la date et l'heure actuelles", "{{datetime}}"),
+        ],
+        ["it"] =
+        [
+            ("Follow-up riunione", "Inviato dopo una chiamata con il cliente",
+                "Gentile {{input:Name}},\n\nGrazie per il tempo dedicato oggi, {{date}}. Vi aggiornerò sui " +
+                "prossimi passi entro il {{date:+3d:dd.MM.yyyy}}.\n\nCordiali saluti,\n{{user}}"),
+            ("Firma e-mail", "Firma rapida in testo semplice",
+                "{{user}}\n{{useremail}}\n{{date}}"),
+            ("Modello segnalazione bug", "Punto di partenza per una segnalazione di bug",
+                "Ambiente: {{os}} ({{osversion}})\nSegnalato da: {{user}} il {{date}}\n\n" +
+                "Passaggi per riprodurre:\n1. \n2. \n\nAtteso:\nEffettivo:"),
+            ("Timestamp rapido", "Incolla la data e l'ora correnti", "{{datetime}}"),
+        ],
+    };
 }

@@ -48,7 +48,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _foregroundTracker = foregroundTracker;
         _externalVariablesPath = externalVariablesPath;
         _refreshHotkeysAsync = refreshHotkeysAsync;
-        Title = $"Snips — {BuildIdentifier.Value}";
+        Title = $"{UiStrings.Get("Str_AppName")} — {BuildIdentifier.Value}";
         BuildInfoText.Text = BuildIdentifier.Value;
         Loaded += async (_, _) => await RefreshListAsync();
     }
@@ -212,7 +212,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         menu.Items.Clear();
 
-        var show = new MenuItem { Header = "Show Snips" };
+        var show = new MenuItem { Header = UiStrings.Get("Str_TrayShow") };
         show.Click += ShowMenuItem_Click;
         menu.Items.Add(show);
 
@@ -222,6 +222,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             menu.Items.Add(new Separator());
             foreach (var snippet in quickApply)
             {
+                // Snippet.Name is user content, not app chrome — never translated.
                 var item = new MenuItem { Header = snippet.Name };
                 item.Click += (_, _) => ApplySnippetByHotkey(snippet.Id);
                 menu.Items.Add(item);
@@ -229,11 +230,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         menu.Items.Add(new Separator());
-        var settings = new MenuItem { Header = "Settings…" };
+        var settings = new MenuItem { Header = UiStrings.Get("Str_TraySettings") };
         settings.Click += (_, _) => _ = OpenSettingsAsync();
         menu.Items.Add(settings);
 
-        var quit = new MenuItem { Header = "Quit" };
+        var quit = new MenuItem { Header = UiStrings.Get("Str_TrayQuit") };
         quit.Click += QuitMenuItem_Click;
         menu.Items.Add(quit);
     }
@@ -482,7 +483,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
         catch (Exception ex)
         {
-            SetStatus(StatusText, $"Couldn't save the new order: {ex.Message}");
+            SetStatus(StatusText, UiStrings.Get("Str_StatusSaveOrderFailedFormat", ex.Message));
         }
         finally
         {
@@ -699,7 +700,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var rendered = await TemplateEngine.RenderAsync(snippet.PlainText, context);
         if (rendered.Cancelled)
         {
-            SetStatus(statusTarget, "Cancelled.");
+            SetStatus(statusTarget, UiStrings.Get("Str_StatusCancelled"));
             return false;
         }
 
@@ -714,7 +715,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         if (!clipboardWriteOk)
         {
-            SetStatus(statusTarget, "Couldn't write to the clipboard — it was busy. Try again.");
+            SetStatus(statusTarget, UiStrings.Get("Str_StatusClipboardBusy"));
         }
         else if (paste)
         {
@@ -725,7 +726,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 // later (as if a transient paste had happened) would silently erase it again;
                 // that was a real bug — Roland kept losing the resolved text this way whenever
                 // "Paste" was checked with no valid target.
-                SetStatus(statusTarget, "No previous window to paste into — copied to clipboard instead.");
+                SetStatus(statusTarget, UiStrings.Get("Str_StatusNoTarget"));
             }
             else
             {
@@ -738,18 +739,15 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 var result = PasteSender.TrySendPaste(target.Value, timeoutMs: 500);
                 SetStatus(statusTarget, result switch
                 {
-                    PasteResult.Sent => "Pasted.",
+                    PasteResult.Sent => UiStrings.Get("Str_StatusPasted"),
                     // Deliberately not blaming admin elevation specifically here — Windows can
                     // refuse to switch foreground for other reasons too (see PasteSender's
                     // ForegroundDenied doc comment), and a wrong specific cause sends the wrong
                     // troubleshooting instinct.
-                    PasteResult.ForegroundDenied =>
-                        "Couldn't bring the target app to the front (Windows refused the switch) — copied to clipboard, press Ctrl+V yourself.",
-                    PasteResult.FocusTimeout =>
-                        "Couldn't bring the target app to the front in time — copied to clipboard, press Ctrl+V yourself.",
-                    PasteResult.TargetGone => "Target window is gone — copied to clipboard instead.",
-                    PasteResult.InputRejected =>
-                        "Windows rejected the paste keystrokes — copied to clipboard, press Ctrl+V yourself.",
+                    PasteResult.ForegroundDenied => UiStrings.Get("Str_StatusForegroundDenied"),
+                    PasteResult.FocusTimeout => UiStrings.Get("Str_StatusFocusTimeout"),
+                    PasteResult.TargetGone => UiStrings.Get("Str_StatusTargetGone"),
+                    PasteResult.InputRejected => UiStrings.Get("Str_StatusInputRejected"),
                     _ => string.Empty,
                 });
 
@@ -759,7 +757,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
         else if (copy)
         {
-            SetStatus(statusTarget, "Copied to clipboard.");
+            SetStatus(statusTarget, UiStrings.Get("Str_StatusCopied"));
         }
 
         await _database.Snippets.RecordUseAsync(snippet.Id);
@@ -803,7 +801,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
         catch (DuplicateSnippetNameException ex)
         {
-            MessageBox.Show(this, ex.Message, "Snips", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, ex.Message, UiStrings.Get("Str_AppName"), MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         await RefreshListAsync();
@@ -868,7 +866,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
         catch (DuplicateSnippetNameException ex)
         {
-            MessageBox.Show(this, ex.Message, "Snips", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, ex.Message, UiStrings.Get("Str_AppName"), MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         await RefreshListAsync();
@@ -908,7 +906,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
 
         var confirmed = MessageBox.Show(
-            this, $"Delete '{snippet.Name}'?", "Snips", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            this, UiStrings.Get("Str_DeleteConfirmFormat", snippet.Name), UiStrings.Get("Str_AppName"),
+            MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (confirmed != MessageBoxResult.Yes)
             return;
 
@@ -972,7 +971,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private void BuildInfoText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (ClipboardTextGuard.SetText(BuildIdentifier.Value))
-            StatusText.Text = "Build identifier copied to clipboard.";
+            StatusText.Text = UiStrings.Get("Str_StatusBuildCopied");
     }
 
     /// <summary>Opens the user guide on GitHub in the default browser. No in-app/localized help
@@ -989,7 +988,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
         {
-            SetStatus(StatusText, "Couldn't open the help page — no default browser found.");
+            SetStatus(StatusText, UiStrings.Get("Str_StatusNoBrowser"));
         }
     }
 

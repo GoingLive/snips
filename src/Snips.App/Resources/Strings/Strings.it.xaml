@@ -1,0 +1,123 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=mscorlib">
+    <!-- Italian. "Snippet" is translated as "estratto" (plural "estratti") throughout. -->
+    <system:String x:Key="Str_AppName">Snips</system:String>
+    <system:String x:Key="Str_Cancel">Annulla</system:String>
+    <system:String x:Key="Str_Save">Salva</system:String>
+    <system:String x:Key="Str_Delete">Elimina</system:String>
+    <system:String x:Key="Str_None">Nessuna</system:String>
+    <system:String x:Key="Str_DeleteConfirmFormat">Eliminare '{0}'?</system:String>
+
+    <system:String x:Key="Str_MainSubtitle">Lo strumento per creare e incollare estratti di testo in un attimo.</system:String>
+    <system:String x:Key="Str_SearchPlaceholder">Cerca estratti…</system:String>
+    <system:String x:Key="Str_ShowOnlyFavoritesTooltip">Mostra solo i preferiti</system:String>
+    <system:String x:Key="Str_SortTooltip">Ordina il resto dell'elenco</system:String>
+    <system:String x:Key="Str_SortAZ">A-Z</system:String>
+    <system:String x:Key="Str_SortNewest">Più recenti</system:String>
+    <system:String x:Key="Str_NewButton">Nuovo</system:String>
+    <system:String x:Key="Str_MenuNew">Nuovo</system:String>
+    <system:String x:Key="Str_MenuEdit">Modifica</system:String>
+    <system:String x:Key="Str_MenuDuplicate">Duplica</system:String>
+    <system:String x:Key="Str_MenuMoveUp">Sposta su</system:String>
+    <system:String x:Key="Str_MenuMoveDown">Sposta giù</system:String>
+    <system:String x:Key="Str_MenuDefineShortcut">Definisci una scorciatoia…</system:String>
+    <system:String x:Key="Str_DragHandleTooltip">Trascina per riordinare i preferiti</system:String>
+    <system:String x:Key="Str_ToggleFavoriteTooltip">Attiva/disattiva preferito</system:String>
+    <system:String x:Key="Str_EditRowTooltip">Modifica questo estratto</system:String>
+    <system:String x:Key="Str_PreviewLabel">Anteprima</system:String>
+    <system:String x:Key="Str_CopyCheckbox">Copia negli appunti</system:String>
+    <system:String x:Key="Str_CopyCheckboxTooltip">Copia il risultato negli appunti.</system:String>
+    <system:String x:Key="Str_PasteCheckbox">Incolla nell'app attiva</system:String>
+    <system:String x:Key="Str_PasteCheckboxTooltip">Digita anche il risultato nell'app che era aperta prima di Snips.</system:String>
+    <system:String x:Key="Str_CloseAfterApplyCheckbox">Chiudi questa finestra dopo l'applicazione</system:String>
+    <system:String x:Key="Str_CloseAfterApplyTooltip">Se disattivato, la finestra resta aperta per applicare un altro estratto.</system:String>
+    <system:String x:Key="Str_Copyright">© 2026 Roland Hüttmann</system:String>
+    <system:String x:Key="Str_BuildInfoTooltip">Fai clic per copiare questo identificativo di build</system:String>
+    <system:String x:Key="Str_TrayShow">Mostra Snips</system:String>
+    <system:String x:Key="Str_TrayQuit">Esci</system:String>
+    <system:String x:Key="Str_TraySettings">Impostazioni…</system:String>
+    <system:String x:Key="Str_StatusCancelled">Annullato.</system:String>
+    <system:String x:Key="Str_StatusClipboardBusy">Impossibile scrivere negli appunti — erano occupati. Riprova.</system:String>
+    <system:String x:Key="Str_StatusNoTarget">Nessuna finestra precedente in cui incollare — copiato negli appunti.</system:String>
+    <system:String x:Key="Str_StatusPasted">Incollato.</system:String>
+    <system:String x:Key="Str_StatusForegroundDenied">Impossibile portare in primo piano l'app di destinazione (Windows ha rifiutato il cambio) — copiato negli appunti, premi tu stesso Ctrl+V.</system:String>
+    <system:String x:Key="Str_StatusFocusTimeout">Impossibile portare in tempo in primo piano l'app di destinazione — copiato negli appunti, premi tu stesso Ctrl+V.</system:String>
+    <system:String x:Key="Str_StatusTargetGone">La finestra di destinazione non esiste più — copiato negli appunti.</system:String>
+    <system:String x:Key="Str_StatusInputRejected">Windows ha rifiutato i tasti di incollaggio — copiato negli appunti, premi tu stesso Ctrl+V.</system:String>
+    <system:String x:Key="Str_StatusCopied">Copiato negli appunti.</system:String>
+    <system:String x:Key="Str_StatusBuildCopied">Identificativo di build copiato negli appunti.</system:String>
+    <system:String x:Key="Str_StatusNoBrowser">Impossibile aprire la pagina di aiuto — nessun browser predefinito trovato.</system:String>
+    <system:String x:Key="Str_StatusSaveOrderFailedFormat">Impossibile salvare il nuovo ordine: {0}</system:String>
+
+    <system:String x:Key="Str_EditorTitle">Estratto</system:String>
+    <system:String x:Key="Str_NameLabel">Nome</system:String>
+    <system:String x:Key="Str_FavoriteCheckbox">Preferito</system:String>
+    <system:String x:Key="Str_ShortcutLabel">Scorciatoia:</system:String>
+    <system:String x:Key="Str_AssignButton">Assegna…</system:String>
+    <system:String x:Key="Str_ClearButton">Rimuovi</system:String>
+    <system:String x:Key="Str_DescriptionLabel">Descrizione</system:String>
+    <system:String x:Key="Str_BodyLabel">Contenuto (testo semplice)</system:String>
+    <system:String x:Key="Str_VariablesHeader">Variabili (doppio clic per inserire)</system:String>
+    <system:String x:Key="Str_VariableSearchPlaceholder">Cerca variabili…</system:String>
+    <system:String x:Key="Str_AssignTooltipDisabled">Salva prima l'estratto — potrai poi assegnare una scorciatoia qui o dall'elenco.</system:String>
+    <system:String x:Key="Str_NameRequiredError">Il nome è obbligatorio.</system:String>
+    <system:String x:Key="Str_Example_DateFormat">Data odierna, formato personalizzato — un formato può contenere ':' liberamente</system:String>
+    <system:String x:Key="Str_Example_DateOffsetFormat">Data con scarto e formato personalizzato insieme</system:String>
+    <system:String x:Key="Str_Example_NowFormat">Data e ora attuali nel formato personalizzato scelto</system:String>
+    <system:String x:Key="Str_Example_Random">Un numero casuale in un intervallo</system:String>
+    <system:String x:Key="Str_Example_RandomString">Una stringa alfanumerica casuale della lunghezza indicata</system:String>
+    <system:String x:Key="Str_Example_Counter">Un contatore persistente — aumenta a ogni utilizzo di questo estratto</system:String>
+    <system:String x:Key="Str_Example_Input">Chiede un valore chiamato Name</system:String>
+    <system:String x:Key="Str_Example_InputDefault">Chiede un valore, precompilato con un valore predefinito</system:String>
+    <system:String x:Key="Str_Example_Multiline">Chiede un testo multilinea</system:String>
+    <system:String x:Key="Str_Example_Choice">Chiede di scegliere una delle opzioni elencate</system:String>
+    <system:String x:Key="Str_Example_Datepick">Chiede di scegliere una data</system:String>
+    <system:String x:Key="Str_Example_Check">Chiede una casella di controllo</system:String>
+    <system:String x:Key="Str_Example_FilterChain">Catena di filtri con | — converte il testo degli appunti in maiuscolo</system:String>
+
+    <system:String x:Key="Str_SettingsTitle">Impostazioni di Snips</system:String>
+    <system:String x:Key="Str_SettingsHeader">Impostazioni</system:String>
+    <system:String x:Key="Str_EmailLabel">La tua e-mail</system:String>
+    <system:String x:Key="Str_EmailCaption">Usato da {{useremail}} negli estratti.</system:String>
+    <system:String x:Key="Str_LanguageLabel">Lingua</system:String>
+    <system:String x:Key="Str_LanguageCaption">Imposta la lingua dell'interfaccia dell'app e la lingua in cui Snips comprende i nomi delle variabili, ad es. il tedesco {{heute}} per {{date}}.</system:String>
+    <system:String x:Key="Str_ManageTranslationsButton">Gestisci traduzioni…</system:String>
+
+    <system:String x:Key="Str_ShortcutCaptureTitleFormat">Scorciatoia per «{0}»</system:String>
+    <system:String x:Key="Str_PressCombo">Premi una combinazione di tasti…</system:String>
+    <system:String x:Key="Str_AltGrWarning">Ctrl+Alt corrisponde a ciò che invia fisicamente il tasto AltGr sulla maggior parte delle tastiere non statunitensi — su alcuni layout questa combinazione digita già un carattere, il che può creare un conflitto. Ctrl+Maiusc o un tasto F sono più sicuri in questo caso.</system:String>
+    <system:String x:Key="Str_ShortcutInstructions">Richiede almeno un modificatore (Ctrl/Alt/Maiusc/Win), oppure un tasto F1–F24 da solo. Esc annulla.</system:String>
+    <system:String x:Key="Str_ClearShortcutButton">Rimuovi scorciatoia</system:String>
+    <system:String x:Key="Str_ModifierRequiredError">Aggiungi almeno un modificatore (Ctrl/Alt/Maiusc/Win), oppure usa un tasto F1–F24 da solo.</system:String>
+    <system:String x:Key="Str_ReservedComboError">Questa combinazione è riservata da Windows e non può essere usata.</system:String>
+
+    <system:String x:Key="Str_TranslationEditorTitle">Gestisci traduzioni</system:String>
+    <system:String x:Key="Str_TranslationLanguageLabel">Lingua:</system:String>
+    <system:String x:Key="Str_ColumnMaster">Inglese (originale)</system:String>
+    <system:String x:Key="Str_ColumnMeaning">Significato</system:String>
+    <system:String x:Key="Str_ColumnTranslated">Nome tradotto</system:String>
+    <system:String x:Key="Str_CloseButton">Chiudi</system:String>
+    <system:String x:Key="Str_CoverageFormat">{0} di {1} tradotti.</system:String>
+    <system:String x:Key="Str_SavedSuffix"> Salvato.</system:String>
+
+    <system:String x:Key="Str_OkButton">OK</system:String>
+
+    <system:String x:Key="Str_UnhandledExceptionFormat">Snips ha riscontrato un errore imprevisto ma è rimasto aperto. Questo estratto o questa azione potrebbe non aver funzionato:
+
+{0}</system:String>
+    <system:String x:Key="Str_AllHotkeysClaimedFormat">Tutte le scorciatoie candidate di Snips ({0}) sono già usate da altre applicazioni. Apri Snips dall'icona nella barra delle applicazioni finché non sarà disponibile una schermata Impostazioni personalizzabile.</system:String>
+    <system:String x:Key="Str_HotkeyFallbackNoticeFormat">Ctrl+Alt+Barra spaziatrice è già usato da un'altra applicazione, quindi Snips ha riservato {0}. Premi {0} per aprire il selettore. (Questo avviso non verrà più mostrato.)</system:String>
+    <system:String x:Key="Str_PerSnippetHotkeyFailedFormat">Questi estratti hanno una scorciatoia assegnata già usata da un'altra applicazione: {0}. Definisci un'altra scorciatoia per loro dal menu contestuale dell'elenco.</system:String>
+    <system:String x:Key="Str_TrayTooltipNoHotkeyFormat">Snips, {0} (nessuna scorciatoia impostata — apri dall'icona nella barra delle applicazioni)</system:String>
+    <system:String x:Key="Str_TrayTooltipWithHotkeyFormat">Snips, {0} — {1} per aprire</system:String>
+
+    <system:String x:Key="Str_HotkeyCtrl">Ctrl</system:String>
+    <system:String x:Key="Str_HotkeyAlt">Alt</system:String>
+    <system:String x:Key="Str_HotkeyShift">Maiusc</system:String>
+    <system:String x:Key="Str_HotkeyWin">Win</system:String>
+    <system:String x:Key="Str_HotkeyEnter">Invio</system:String>
+    <system:String x:Key="Str_HotkeyPageDown">Pag giù</system:String>
+    <system:String x:Key="Str_HotkeyPageUp">Pag su</system:String>
+    <system:String x:Key="Str_HotkeyNumPrefix">Num </system:String>
+</ResourceDictionary>

@@ -1,0 +1,126 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=mscorlib">
+    <!-- German (Swiss orthography — no ß, "ss" throughout, matching Roland's own usage). "Snippet"
+         is translated as "Textbaustein" (plural "Textbausteine") throughout — the standard German
+         term for a reusable text block, matching Microsoft Outlook's own terminology for the same
+         concept, rather than a borrowed English word. -->
+    <system:String x:Key="Str_AppName">Snips</system:String>
+    <system:String x:Key="Str_Cancel">Abbrechen</system:String>
+    <system:String x:Key="Str_Save">Speichern</system:String>
+    <system:String x:Key="Str_Delete">Löschen</system:String>
+    <system:String x:Key="Str_None">Keine</system:String>
+    <system:String x:Key="Str_DeleteConfirmFormat">'{0}' löschen?</system:String>
+
+    <system:String x:Key="Str_MainSubtitle">Das Werkzeug zum Erstellen und Einfügen von Textbausteinen.</system:String>
+    <system:String x:Key="Str_SearchPlaceholder">Textbausteine durchsuchen…</system:String>
+    <system:String x:Key="Str_ShowOnlyFavoritesTooltip">Nur Favoriten anzeigen</system:String>
+    <system:String x:Key="Str_SortTooltip">Rest der Liste sortieren</system:String>
+    <system:String x:Key="Str_SortAZ">A-Z</system:String>
+    <system:String x:Key="Str_SortNewest">Neueste</system:String>
+    <system:String x:Key="Str_NewButton">Neu</system:String>
+    <system:String x:Key="Str_MenuNew">Neu</system:String>
+    <system:String x:Key="Str_MenuEdit">Bearbeiten</system:String>
+    <system:String x:Key="Str_MenuDuplicate">Duplizieren</system:String>
+    <system:String x:Key="Str_MenuMoveUp">Nach oben</system:String>
+    <system:String x:Key="Str_MenuMoveDown">Nach unten</system:String>
+    <system:String x:Key="Str_MenuDefineShortcut">Tastenkombination festlegen…</system:String>
+    <system:String x:Key="Str_DragHandleTooltip">Ziehen, um Favoriten neu anzuordnen</system:String>
+    <system:String x:Key="Str_ToggleFavoriteTooltip">Favorit umschalten</system:String>
+    <system:String x:Key="Str_EditRowTooltip">Diesen Textbaustein bearbeiten</system:String>
+    <system:String x:Key="Str_PreviewLabel">Vorschau</system:String>
+    <system:String x:Key="Str_CopyCheckbox">In Zwischenablage kopieren</system:String>
+    <system:String x:Key="Str_CopyCheckboxTooltip">Kopiert das Ergebnis in Ihre Zwischenablage.</system:String>
+    <system:String x:Key="Str_PasteCheckbox">In aktive App einfügen</system:String>
+    <system:String x:Key="Str_PasteCheckboxTooltip">Tippt das Ergebnis zusätzlich in die App, die vor Snips aktiv war.</system:String>
+    <system:String x:Key="Str_CloseAfterApplyCheckbox">Dieses Fenster nach dem Anwenden schliessen</system:String>
+    <system:String x:Key="Str_CloseAfterApplyTooltip">Wenn deaktiviert, bleibt das Fenster offen, damit Sie einen weiteren Textbaustein anwenden können.</system:String>
+    <system:String x:Key="Str_Copyright">© 2026 Roland Hüttmann</system:String>
+    <system:String x:Key="Str_BuildInfoTooltip">Klicken, um diese Build-Kennung zu kopieren</system:String>
+    <system:String x:Key="Str_TrayShow">Snips anzeigen</system:String>
+    <system:String x:Key="Str_TrayQuit">Beenden</system:String>
+    <system:String x:Key="Str_TraySettings">Einstellungen…</system:String>
+    <system:String x:Key="Str_StatusCancelled">Abgebrochen.</system:String>
+    <system:String x:Key="Str_StatusClipboardBusy">Zwischenablage konnte nicht beschrieben werden — sie war belegt. Bitte erneut versuchen.</system:String>
+    <system:String x:Key="Str_StatusNoTarget">Kein vorheriges Fenster zum Einfügen vorhanden — stattdessen in die Zwischenablage kopiert.</system:String>
+    <system:String x:Key="Str_StatusPasted">Eingefügt.</system:String>
+    <system:String x:Key="Str_StatusForegroundDenied">Zielanwendung konnte nicht in den Vordergrund geholt werden (Windows hat den Wechsel verweigert) — in die Zwischenablage kopiert, bitte selbst Strg+V drücken.</system:String>
+    <system:String x:Key="Str_StatusFocusTimeout">Zielanwendung konnte nicht rechtzeitig in den Vordergrund geholt werden — in die Zwischenablage kopiert, bitte selbst Strg+V drücken.</system:String>
+    <system:String x:Key="Str_StatusTargetGone">Zielfenster ist nicht mehr vorhanden — stattdessen in die Zwischenablage kopiert.</system:String>
+    <system:String x:Key="Str_StatusInputRejected">Windows hat die Einfüge-Tastenanschläge abgelehnt — in die Zwischenablage kopiert, bitte selbst Strg+V drücken.</system:String>
+    <system:String x:Key="Str_StatusCopied">In die Zwischenablage kopiert.</system:String>
+    <system:String x:Key="Str_StatusBuildCopied">Build-Kennung in die Zwischenablage kopiert.</system:String>
+    <system:String x:Key="Str_StatusNoBrowser">Hilfeseite konnte nicht geöffnet werden — kein Standardbrowser gefunden.</system:String>
+    <system:String x:Key="Str_StatusSaveOrderFailedFormat">Neue Reihenfolge konnte nicht gespeichert werden: {0}</system:String>
+
+    <system:String x:Key="Str_EditorTitle">Textbaustein</system:String>
+    <system:String x:Key="Str_NameLabel">Name</system:String>
+    <system:String x:Key="Str_FavoriteCheckbox">Favorit</system:String>
+    <system:String x:Key="Str_ShortcutLabel">Tastenkombination:</system:String>
+    <system:String x:Key="Str_AssignButton">Zuweisen…</system:String>
+    <system:String x:Key="Str_ClearButton">Entfernen</system:String>
+    <system:String x:Key="Str_DescriptionLabel">Beschreibung</system:String>
+    <system:String x:Key="Str_BodyLabel">Inhalt (Klartext)</system:String>
+    <system:String x:Key="Str_VariablesHeader">Variablen (Doppelklick zum Einfügen)</system:String>
+    <system:String x:Key="Str_VariableSearchPlaceholder">Variablen durchsuchen…</system:String>
+    <system:String x:Key="Str_AssignTooltipDisabled">Zuerst den Textbaustein speichern — danach kann hier oder in der Liste eine Tastenkombination zugewiesen werden.</system:String>
+    <system:String x:Key="Str_NameRequiredError">Name ist erforderlich.</system:String>
+    <system:String x:Key="Str_Example_DateFormat">Heutiges Datum, eigenes Format — jedes Format darf ':' frei enthalten</system:String>
+    <system:String x:Key="Str_Example_DateOffsetFormat">Datum mit Versatz und eigenem Format zusammen</system:String>
+    <system:String x:Key="Str_Example_NowFormat">Aktuelles Datum/Uhrzeit in einem beliebigen eigenen Format</system:String>
+    <system:String x:Key="Str_Example_Random">Eine Zufallszahl in einem Bereich</system:String>
+    <system:String x:Key="Str_Example_RandomString">Eine zufällige alphanumerische Zeichenfolge der angegebenen Länge</system:String>
+    <system:String x:Key="Str_Example_Counter">Ein dauerhafter Zähler — erhöht sich bei jeder Verwendung dieses Textbausteins</system:String>
+    <system:String x:Key="Str_Example_Input">Fragt nach einem Wert namens Name</system:String>
+    <system:String x:Key="Str_Example_InputDefault">Fragt nach einem Wert, vorausgefüllt mit einem Standardwert</system:String>
+    <system:String x:Key="Str_Example_Multiline">Fragt nach mehrzeiligem Text</system:String>
+    <system:String x:Key="Str_Example_Choice">Fragt nach Auswahl einer der aufgeführten Optionen</system:String>
+    <system:String x:Key="Str_Example_Datepick">Fragt nach Auswahl eines Datums</system:String>
+    <system:String x:Key="Str_Example_Check">Fragt nach einem Kontrollkästchen</system:String>
+    <system:String x:Key="Str_Example_FilterChain">Filterkette mit | — dies wandelt den Zwischenablage-Text in Grossbuchstaben um</system:String>
+
+    <system:String x:Key="Str_SettingsTitle">Snips-Einstellungen</system:String>
+    <system:String x:Key="Str_SettingsHeader">Einstellungen</system:String>
+    <system:String x:Key="Str_EmailLabel">Ihre E-Mail-Adresse</system:String>
+    <system:String x:Key="Str_EmailCaption">Wird von {{useremail}} in Textbausteinen verwendet.</system:String>
+    <system:String x:Key="Str_LanguageLabel">Sprache</system:String>
+    <system:String x:Key="Str_LanguageCaption">Legt die Sprache der App-Oberfläche fest sowie die Sprache, in der Snips Variablennamen versteht, z. B. Deutsch {{heute}} für {{date}}.</system:String>
+    <system:String x:Key="Str_ManageTranslationsButton">Übersetzungen verwalten…</system:String>
+
+    <system:String x:Key="Str_ShortcutCaptureTitleFormat">Tastenkombination für „{0}“</system:String>
+    <system:String x:Key="Str_PressCombo">Tastenkombination drücken…</system:String>
+    <system:String x:Key="Str_AltGrWarning">Strg+Alt entspricht dem, was die physische AltGr-Taste auf den meisten nicht-US-Tastaturen sendet — auf manchen Layouts ist diese Kombination bereits mit der Eingabe eines Zeichens belegt, was zu Konflikten führen kann. Strg+Umschalt oder eine F-Taste sind in diesem Fall sicherer.</system:String>
+    <system:String x:Key="Str_ShortcutInstructions">Erfordert mindestens einen Modifikator (Strg/Alt/Umschalt/Win) oder eine reine F1–F24-Taste. Esc bricht ab.</system:String>
+    <system:String x:Key="Str_ClearShortcutButton">Tastenkombination entfernen</system:String>
+    <system:String x:Key="Str_ModifierRequiredError">Mindestens einen Modifikator hinzufügen (Strg/Alt/Umschalt/Win) oder eine reine F1–F24-Taste verwenden.</system:String>
+    <system:String x:Key="Str_ReservedComboError">Diese Kombination ist für Windows reserviert und kann nicht verwendet werden.</system:String>
+
+    <system:String x:Key="Str_TranslationEditorTitle">Übersetzungen verwalten</system:String>
+    <system:String x:Key="Str_TranslationLanguageLabel">Sprache:</system:String>
+    <system:String x:Key="Str_ColumnMaster">Englisch (Original)</system:String>
+    <system:String x:Key="Str_ColumnMeaning">Bedeutung</system:String>
+    <system:String x:Key="Str_ColumnTranslated">Übersetzter Name</system:String>
+    <system:String x:Key="Str_CloseButton">Schliessen</system:String>
+    <system:String x:Key="Str_CoverageFormat">{0} von {1} übersetzt.</system:String>
+    <system:String x:Key="Str_SavedSuffix"> Gespeichert.</system:String>
+
+    <system:String x:Key="Str_OkButton">OK</system:String>
+
+    <system:String x:Key="Str_UnhandledExceptionFormat">Bei Snips ist ein unerwarteter Fehler aufgetreten, die App bleibt aber geöffnet. Dieser Textbaustein oder diese Aktion hat möglicherweise nicht funktioniert:
+
+{0}</system:String>
+    <system:String x:Key="Str_AllHotkeysClaimedFormat">Alle Kandidaten-Tastenkombinationen von Snips ({0}) sind bereits durch andere Anwendungen belegt. Bitte Snips vorerst über das Symbol in der Taskleiste öffnen, bis eine anpassbare Einstellungsansicht verfügbar ist.</system:String>
+    <system:String x:Key="Str_HotkeyFallbackNoticeFormat">Strg+Alt+Leertaste wird bereits von einer anderen Anwendung verwendet, daher wurde {0} für Snips reserviert. {0} drücken, um die Auswahl zu öffnen. (Dieser Hinweis wird nicht erneut angezeigt.)</system:String>
+    <system:String x:Key="Str_PerSnippetHotkeyFailedFormat">Für diese Textbausteine ist eine Tastenkombination zugewiesen, die bereits von einer anderen Anwendung verwendet wird: {0}. Bitte über das Kontextmenü in der Liste eine andere Tastenkombination festlegen.</system:String>
+    <system:String x:Key="Str_TrayTooltipNoHotkeyFormat">Snips, {0} (keine Tastenkombination zugewiesen — über das Symbol in der Taskleiste öffnen)</system:String>
+    <system:String x:Key="Str_TrayTooltipWithHotkeyFormat">Snips, {0} — mit {1} öffnen</system:String>
+
+    <system:String x:Key="Str_HotkeyCtrl">Strg</system:String>
+    <system:String x:Key="Str_HotkeyAlt">Alt</system:String>
+    <system:String x:Key="Str_HotkeyShift">Umschalt</system:String>
+    <system:String x:Key="Str_HotkeyWin">Win</system:String>
+    <system:String x:Key="Str_HotkeyEnter">Eingabe</system:String>
+    <system:String x:Key="Str_HotkeyPageDown">Bild ab</system:String>
+    <system:String x:Key="Str_HotkeyPageUp">Bild auf</system:String>
+    <system:String x:Key="Str_HotkeyNumPrefix">Num </system:String>
+</ResourceDictionary>

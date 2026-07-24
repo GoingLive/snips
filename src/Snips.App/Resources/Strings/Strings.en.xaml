@@ -1,0 +1,141 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=mscorlib">
+    <!--
+        English is the master copy — every key here MUST also exist in every other Strings.*.xaml
+        (UiStrings.Get falls back to this dictionary if the active language's copy is missing a
+        key, so a translation can lag behind a new English string without anything breaking, but
+        a key that doesn't exist HERE at all is a bug in whichever XAML/code-behind references it).
+        Referenced via {DynamicResource Str_X} in XAML and UiStrings.Get("Str_X") in code-behind —
+        DynamicResource (not Static) is what lets SettingsWindow swap the whole dictionary at
+        runtime and have every open window's text update immediately, no restart needed.
+    -->
+
+    <!-- Common — shared across multiple windows, translated once. -->
+    <system:String x:Key="Str_AppName">Snips</system:String>
+    <system:String x:Key="Str_Cancel">Cancel</system:String>
+    <system:String x:Key="Str_Save">Save</system:String>
+    <system:String x:Key="Str_Delete">Delete</system:String>
+    <system:String x:Key="Str_None">None</system:String>
+    <system:String x:Key="Str_DeleteConfirmFormat">Delete '{0}'?</system:String>
+
+    <!-- MainWindow -->
+    <system:String x:Key="Str_MainSubtitle">The tool to define and paste snippets at your fingertips.</system:String>
+    <system:String x:Key="Str_SearchPlaceholder">Search snippets…</system:String>
+    <system:String x:Key="Str_ShowOnlyFavoritesTooltip">Show only favorites</system:String>
+    <system:String x:Key="Str_SortTooltip">Sort the rest of the list</system:String>
+    <system:String x:Key="Str_SortAZ">A-Z</system:String>
+    <system:String x:Key="Str_SortNewest">Newest</system:String>
+    <system:String x:Key="Str_NewButton">New</system:String>
+    <system:String x:Key="Str_MenuNew">New</system:String>
+    <system:String x:Key="Str_MenuEdit">Edit</system:String>
+    <system:String x:Key="Str_MenuDuplicate">Duplicate</system:String>
+    <system:String x:Key="Str_MenuMoveUp">Move Up</system:String>
+    <system:String x:Key="Str_MenuMoveDown">Move Down</system:String>
+    <system:String x:Key="Str_MenuDefineShortcut">Define a shortcut…</system:String>
+    <system:String x:Key="Str_DragHandleTooltip">Drag to reorder favorites</system:String>
+    <system:String x:Key="Str_ToggleFavoriteTooltip">Toggle favorite</system:String>
+    <system:String x:Key="Str_EditRowTooltip">Edit this snippet</system:String>
+    <system:String x:Key="Str_PreviewLabel">Preview</system:String>
+    <system:String x:Key="Str_CopyCheckbox">Copy to clipboard</system:String>
+    <system:String x:Key="Str_CopyCheckboxTooltip">Copies the result to your clipboard.</system:String>
+    <system:String x:Key="Str_PasteCheckbox">Paste into active app</system:String>
+    <system:String x:Key="Str_PasteCheckboxTooltip">Also types the result into the app you had open before Snips.</system:String>
+    <system:String x:Key="Str_CloseAfterApplyCheckbox">Close this window after applying</system:String>
+    <system:String x:Key="Str_CloseAfterApplyTooltip">If off, the window stays open so you can apply another snippet.</system:String>
+    <system:String x:Key="Str_Copyright">© 2026 Roland Hüttmann</system:String>
+    <system:String x:Key="Str_BuildInfoTooltip">Click to copy this build identifier</system:String>
+    <system:String x:Key="Str_TrayShow">Show Snips</system:String>
+    <system:String x:Key="Str_TrayQuit">Quit</system:String>
+    <system:String x:Key="Str_TraySettings">Settings…</system:String>
+    <system:String x:Key="Str_StatusCancelled">Cancelled.</system:String>
+    <system:String x:Key="Str_StatusClipboardBusy">Couldn't write to the clipboard — it was busy. Try again.</system:String>
+    <system:String x:Key="Str_StatusNoTarget">No previous window to paste into — copied to clipboard instead.</system:String>
+    <system:String x:Key="Str_StatusPasted">Pasted.</system:String>
+    <system:String x:Key="Str_StatusForegroundDenied">Couldn't bring the target app to the front (Windows refused the switch) — copied to clipboard, press Ctrl+V yourself.</system:String>
+    <system:String x:Key="Str_StatusFocusTimeout">Couldn't bring the target app to the front in time — copied to clipboard, press Ctrl+V yourself.</system:String>
+    <system:String x:Key="Str_StatusTargetGone">Target window is gone — copied to clipboard instead.</system:String>
+    <system:String x:Key="Str_StatusInputRejected">Windows rejected the paste keystrokes — copied to clipboard, press Ctrl+V yourself.</system:String>
+    <system:String x:Key="Str_StatusCopied">Copied to clipboard.</system:String>
+    <system:String x:Key="Str_StatusBuildCopied">Build identifier copied to clipboard.</system:String>
+    <system:String x:Key="Str_StatusNoBrowser">Couldn't open the help page — no default browser found.</system:String>
+    <system:String x:Key="Str_StatusSaveOrderFailedFormat">Couldn't save the new order: {0}</system:String>
+
+    <!-- SnippetEditWindow -->
+    <system:String x:Key="Str_EditorTitle">Snippet</system:String>
+    <system:String x:Key="Str_NameLabel">Name</system:String>
+    <system:String x:Key="Str_FavoriteCheckbox">Favorite</system:String>
+    <system:String x:Key="Str_ShortcutLabel">Shortcut:</system:String>
+    <system:String x:Key="Str_AssignButton">Assign…</system:String>
+    <system:String x:Key="Str_ClearButton">Clear</system:String>
+    <system:String x:Key="Str_DescriptionLabel">Description</system:String>
+    <system:String x:Key="Str_BodyLabel">Body (plain text)</system:String>
+    <system:String x:Key="Str_VariablesHeader">Variables (double-click to insert)</system:String>
+    <system:String x:Key="Str_VariableSearchPlaceholder">Search variables…</system:String>
+    <system:String x:Key="Str_AssignTooltipDisabled">Save the snippet first, then a shortcut can be assigned here or from the list.</system:String>
+    <system:String x:Key="Str_NameRequiredError">Name is required.</system:String>
+    <system:String x:Key="Str_Example_DateFormat">Today's date, custom format — any format may contain ':' freely</system:String>
+    <system:String x:Key="Str_Example_DateOffsetFormat">Date with an offset and a custom format together</system:String>
+    <system:String x:Key="Str_Example_NowFormat">Current date/time in any custom format you choose</system:String>
+    <system:String x:Key="Str_Example_Random">A random number in a range</system:String>
+    <system:String x:Key="Str_Example_RandomString">A random alphanumeric string of the given length</system:String>
+    <system:String x:Key="Str_Example_Counter">A persistent counter — increments every time this snippet is used</system:String>
+    <system:String x:Key="Str_Example_Input">Prompts for a value called Name</system:String>
+    <system:String x:Key="Str_Example_InputDefault">Prompts for a value, pre-filled with a default</system:String>
+    <system:String x:Key="Str_Example_Multiline">Prompts for multi-line text</system:String>
+    <system:String x:Key="Str_Example_Choice">Prompts to pick one of the listed options</system:String>
+    <system:String x:Key="Str_Example_Datepick">Prompts to pick a date</system:String>
+    <system:String x:Key="Str_Example_Check">Prompts for a checkbox</system:String>
+    <system:String x:Key="Str_Example_FilterChain">Filters chain with | — this uppercases the clipboard text</system:String>
+
+    <!-- SettingsWindow -->
+    <system:String x:Key="Str_SettingsTitle">Snips Settings</system:String>
+    <system:String x:Key="Str_SettingsHeader">Settings</system:String>
+    <system:String x:Key="Str_EmailLabel">Your email</system:String>
+    <system:String x:Key="Str_EmailCaption">Used by {{useremail}} in snippets.</system:String>
+    <system:String x:Key="Str_LanguageLabel">Language</system:String>
+    <system:String x:Key="Str_LanguageCaption">Sets the app's own interface language, and which language's variable names Snips understands, e.g. German {{heute}} for {{date}}.</system:String>
+    <system:String x:Key="Str_ManageTranslationsButton">Manage translations…</system:String>
+
+    <!-- ShortcutCaptureWindow -->
+    <system:String x:Key="Str_ShortcutCaptureTitleFormat">Shortcut for &#8220;{0}&#8221;</system:String>
+    <system:String x:Key="Str_PressCombo">Press a key combination…</system:String>
+    <system:String x:Key="Str_AltGrWarning">Ctrl+Alt is what a physical AltGr key sends on most non-US keyboards — on some layouts this combination already types a character, which may conflict. Ctrl+Shift or an F-key is safer if that happens.</system:String>
+    <system:String x:Key="Str_ShortcutInstructions">Requires at least one modifier (Ctrl/Alt/Shift/Win), or a bare F1–F24 key. Esc cancels.</system:String>
+    <system:String x:Key="Str_ClearShortcutButton">Clear shortcut</system:String>
+    <system:String x:Key="Str_ModifierRequiredError">Add at least one modifier (Ctrl/Alt/Shift/Win), or use a bare F1–F24 key.</system:String>
+    <system:String x:Key="Str_ReservedComboError">That combination is reserved by Windows and can't be used.</system:String>
+
+    <!-- TranslationEditorWindow -->
+    <system:String x:Key="Str_TranslationEditorTitle">Manage Translations</system:String>
+    <system:String x:Key="Str_TranslationLanguageLabel">Language:</system:String>
+    <system:String x:Key="Str_ColumnMaster">English (master)</system:String>
+    <system:String x:Key="Str_ColumnMeaning">Meaning</system:String>
+    <system:String x:Key="Str_ColumnTranslated">Translated name</system:String>
+    <system:String x:Key="Str_CloseButton">Close</system:String>
+    <system:String x:Key="Str_CoverageFormat">{0} of {1} translated.</system:String>
+    <system:String x:Key="Str_SavedSuffix"> Saved.</system:String>
+
+    <!-- InteractivePromptWindow -->
+    <system:String x:Key="Str_OkButton">OK</system:String>
+
+    <!-- App.xaml.cs — MessageBox bodies, tray tooltip -->
+    <system:String x:Key="Str_UnhandledExceptionFormat">Snips hit an unexpected error and stayed open, but this snippet or action may not have worked:
+
+{0}</system:String>
+    <system:String x:Key="Str_AllHotkeysClaimedFormat">All of Snips' candidate hotkeys ({0}) are already claimed by other applications. Open Snips from the tray icon instead until a rebindable Settings view exists.</system:String>
+    <system:String x:Key="Str_HotkeyFallbackNoticeFormat">Ctrl+Alt+Space is already in use by another application, so Snips bound {0} instead. Press {0} to open the picker. (This notice won't be shown again.)</system:String>
+    <system:String x:Key="Str_PerSnippetHotkeyFailedFormat">These snippets have a shortcut assigned, but the combination is already in use by another application: {0}. Define a different shortcut for them from the picker's right-click menu.</system:String>
+    <system:String x:Key="Str_TrayTooltipNoHotkeyFormat">Snips, {0} (no hotkey bound — open from this tray icon)</system:String>
+    <system:String x:Key="Str_TrayTooltipWithHotkeyFormat">Snips, {0} — {1} to open</system:String>
+
+    <!-- HotkeyFormatting.cs -->
+    <system:String x:Key="Str_HotkeyCtrl">Ctrl</system:String>
+    <system:String x:Key="Str_HotkeyAlt">Alt</system:String>
+    <system:String x:Key="Str_HotkeyShift">Shift</system:String>
+    <system:String x:Key="Str_HotkeyWin">Win</system:String>
+    <system:String x:Key="Str_HotkeyEnter">Enter</system:String>
+    <system:String x:Key="Str_HotkeyPageDown">PageDown</system:String>
+    <system:String x:Key="Str_HotkeyPageUp">PageUp</system:String>
+    <system:String x:Key="Str_HotkeyNumPrefix">Num </system:String>
+</ResourceDictionary>
