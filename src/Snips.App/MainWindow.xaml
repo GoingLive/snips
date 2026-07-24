@@ -227,9 +227,19 @@
                                         <TextBlock x:Name="DescriptionText" Text="{Binding Snippet.Description}" Style="{StaticResource CaptionTextBlockStyle}"
                                                    Foreground="{StaticResource TextOnSurfaceMuted}" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
-                                    <TextBlock x:Name="ShortcutText" Grid.Column="2" Text="{Binding ShortcutLabel}" Style="{StaticResource CaptionTextBlockStyle}"
-                                               Foreground="{StaticResource TextOnSurfaceMuted}"
-                                               VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                    <!-- Assigned global shortcut, shown as a keycap-style chip so it
+                                         reads as a shortcut at a glance (like a menu accelerator) rather
+                                         than as more grey text. Collapses entirely when the snippet has
+                                         no shortcut — ShortcutLabel is null in that case (see ApplyFilter's
+                                         GetValueOrDefault), so the whole chip disappears via the trigger
+                                         below and leaves no empty box behind. -->
+                                    <Border x:Name="ShortcutChip" Grid.Column="2" VerticalAlignment="Center" Margin="8,0,0,0"
+                                            Background="#FFF3D6" BorderBrush="#E0A800" BorderThickness="1"
+                                            CornerRadius="4" Padding="6,1">
+                                        <TextBlock x:Name="ShortcutText" Text="{Binding ShortcutLabel}"
+                                                   FontFamily="Consolas" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextOnSurface}"/>
+                                    </Border>
                                     <!-- Always-visible favorite toggle — filled star = favorite.
                                          Foreground set explicitly (not inherited) since the
                                          selection trigger below inverts everything else to white. -->
@@ -254,7 +264,9 @@
                                     <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource Accent}"/>
                                     <Setter TargetName="NameText" Property="Foreground" Value="White"/>
                                     <Setter TargetName="DescriptionText" Property="Foreground" Value="#FFF3D6"/>
-                                    <Setter TargetName="ShortcutText" Property="Foreground" Value="#FFF3D6"/>
+                                    <!-- The shortcut chip keeps its cream fill on the selected (orange)
+                                         row — a cream keycap on orange reads well, and its dark text
+                                         stays legible, so it must NOT be recolored to match the row. -->
                                     <Setter TargetName="EditRowButton" Property="Foreground" Value="White"/>
                                     <!-- Fixed accent-orange star would nearly vanish against the
                                          same-colored selected-row background — switch to white
@@ -263,6 +275,10 @@
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding Snippet.IsFavorite}" Value="True">
                                     <Setter TargetName="DragHandleIcon" Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                                <!-- No shortcut assigned → no chip at all (rather than an empty box). -->
+                                <DataTrigger Binding="{Binding ShortcutLabel}" Value="{x:Null}">
+                                    <Setter TargetName="ShortcutChip" Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
                                 <!-- Marks the boundary between the favorites section and the rest
                                      of the (alphabetical) list — a thicker accent-colored bottom
