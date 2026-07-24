@@ -30,6 +30,13 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         var selectedLanguage = (SupportedLanguage)LanguageComboBox.SelectedItem;
         await _settings.SetAsync("Language", selectedLanguage.Code);
 
+        // Every open window's UI text updates immediately — everything in XAML reads via
+        // {DynamicResource}, specifically so this doesn't need a restart to take effect. The
+        // tray context menu (built in code, not XAML-bound) picks up the change too, via
+        // MainWindow's own RefreshListAsync -> RefreshTrayMenu call right after this dialog
+        // closes with DialogResult = true.
+        UiStrings.Apply(selectedLanguage.Code);
+
         DialogResult = true;
     }
 
