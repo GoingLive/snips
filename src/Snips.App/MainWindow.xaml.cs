@@ -31,8 +31,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private bool _copyDefault = true;
     private bool _pasteDefault;
     private bool _closeAfterApplyDefault;
+    private string _sortMode = "Name";
     private Point? _dragStartPoint;
     private PickerRow? _dragCandidateRow;
+    private DragAdorner? _dragAdorner;
     private string _languageCode = "en";
     private IReadOnlyDictionary<string, string>? _variableNameTranslations;
 
@@ -68,6 +70,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         CopyCheckBox.IsChecked = _copyDefault;
         PasteCheckBox.IsChecked = _pasteDefault;
         CloseAfterApplyCheckBox.IsChecked = _closeAfterApplyDefault;
+        // Deliberately NOT restored from anywhere — always starts unchecked. See the XAML
+        // comment above FavoritesFilterToggle for why this one specifically isn't persisted.
+        FavoritesFilterToggle.IsChecked = false;
+        SortModeComboBox.SelectedItem = SortModeComboBox.Items.Cast<ComboBoxItem>()
+            .FirstOrDefault(item => (string)item.Tag == _sortMode) ?? SortModeComboBox.Items[0];
         SearchBox.Focus();
     }
 
@@ -99,6 +106,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _copyDefault = await _database.Settings.GetAsync("CopyToClipboardDefault") != "0";
         _pasteDefault = await _database.Settings.GetAsync("PasteIntoActiveAppDefault") == "1";
         _closeAfterApplyDefault = await _database.Settings.GetAsync("CloseAfterApplyDefault") == "1";
+        _sortMode = await _database.Settings.GetAsync("SortMode") ?? "Name";
         await RefreshLanguageAsync();
         ApplyFilter();
         RefreshTrayMenu();
@@ -213,26 +221,49 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             await RefreshListAsync();
     }
 
+    private void FavoritesFilterToggle_Changed(object sender, RoutedEventArgs e) => ApplyFilter();
+
+    private void SortModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (SortModeComboBox.SelectedItem is not ComboBoxItem { Tag: string mode })
+            return;
+
+        _sortMode = mode;
+        if (_database is not null)
+            _ = _database.Settings.SetAsync("SortMode", mode);
+        ApplyFilter();
+    }
+
     /// <summary>Favorites always come first, in the user's own drag order (ties broken by name
-    /// so a freshly-favorited snippet doesn't land somewhere random); everyone else follows
-    /// alphabetically. There's no separate filtered view anymore — Roland's redesign (2026-07-24)
-    /// replaced "hide everything except favorites" with "pin favorites to the top of the always-
-    /// full list," specifically to avoid a state where the list can appear completely empty.
-    /// SnippetSearch's own doc comment confirms it trusts this order verbatim when the search
-    /// box is empty — it only re-ranks once there's an actual query, at which point relevance
-    /// reasonably wins over pinning.</summary>
+    /// so a freshly-favorited snippet doesn't land somewhere random). Everyone else follows
+    /// according to SortModeComboBox — alphabetically by default, or by creation date ("Newest"
+    /// — Roland specifically asked for incoming/creation date, not last-used recency). When
+    /// FavoritesFilterToggle is on, only favorites are returned at all. SnippetSearch's own doc
+    /// comment confirms it trusts this order verbatim when the search box is empty — it only
+    /// re-ranks once there's an actual query, at which point relevance reasonably wins over
+    /// pinning or sort mode.</summary>
     private IEnumerable<Snippet> OrderedSourceSnippets()
     {
         var favorites = _allSnippets.Where(s => s.IsFavorite)
             .OrderBy(s => s.FavoriteSortOrder).ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase);
-        var rest = _allSnippets.Where(s => !s.IsFavorite).OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase);
+
+        if (FavoritesFilterToggle.IsChecked == true)
+            return favorites;
+
+        var rest = _sortMode == "Recent"
+            ? _allSnippets.Where(s => !s.IsFavorite).OrderByDescending(s => s.CreatedUtc)
+            : _allSnippets.Where(s => !s.IsFavorite).OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase);
         return favorites.Concat(rest);
     }
 
     private void ApplyFilter()
     {
         var previouslySelectedId = GetSelectedSnippet()?.Id;
-        var isUnfiltered = string.IsNullOrEmpty(SearchBox.Text);
+        // The pinned-favorites-then-rest order (and therefore the boundary marker below) is only
+        // meaningful when there's no active search AND the list isn't already favorites-only —
+        // in the filtered view every visible row already is a favorite, so there's no "rest" to
+        // mark a boundary before.
+        var showsPinnedOrder = string.IsNullOrEmpty(SearchBox.Text) && FavoritesFilterToggle.IsChecked != true;
 
         var matches = SnippetSearch.Search(OrderedSourceSnippets(), SearchBox.Text, DateTime.UtcNow)
             .Select(m => new PickerRow(
@@ -240,10 +271,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 _shortcutLabelsBySnippetId.GetValueOrDefault(m.Snippet.Id)))
             .ToList();
 
-        // Only meaningful (and only computed) when the pinned favorites-then-rest order above is
-        // actually what's showing — an active search re-ranks by relevance instead, at which
-        // point "last favorite" has no coherent meaning.
-        if (isUnfiltered)
+        if (showsPinnedOrder)
         {
             var lastFavoriteIndex = matches.FindLastIndex(r => r.Snippet.IsFavorite);
             if (lastFavoriteIndex >= 0 && lastFavoriteIndex < matches.Count - 1)
@@ -376,8 +404,37 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         _dragStartPoint = null;
         _dragCandidateRow = null;
-        DragDrop.DoDragDrop(ResultsList, row, DragDropEffects.Move);
+
+        var container = ResultsList.ItemContainerGenerator.ContainerFromItem(row) as UIElement;
+        var layer = System.Windows.Documents.AdornerLayer.GetAdornerLayer(ResultsList);
+        if (container is not null && layer is not null)
+        {
+            _dragAdorner = new DragAdorner(ResultsList, container);
+            layer.Add(_dragAdorner);
+        }
+
+        try
+        {
+            // Blocking call — pumps its own loop until the drag ends (drop, Escape, or the
+            // mouse button releasing outside a valid target). Everything after this line only
+            // runs once that's over, which is exactly when the ghost should disappear.
+            DragDrop.DoDragDrop(ResultsList, row, DragDropEffects.Move);
+        }
+        finally
+        {
+            if (_dragAdorner is not null)
+            {
+                layer?.Remove(_dragAdorner);
+                _dragAdorner = null;
+            }
+        }
     }
+
+    /// <summary>Keeps the drag ghost tracking the cursor for the duration of the drag —
+    /// DragDrop.DoDragDrop runs its own message loop, so this is the only chance to react to
+    /// mouse movement while it's active.</summary>
+    private void ResultsList_DragOver(object sender, DragEventArgs e) =>
+        _dragAdorner?.UpdatePosition(e.GetPosition(ResultsList));
 
     /// <summary>Renumbers every favorite 0..N-1 in the new order and persists all of them —
     /// favorites are a short list (Roland: "5-10, not so much for all of the snippets"), so

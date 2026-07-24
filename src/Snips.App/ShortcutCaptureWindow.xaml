@@ -13,7 +13,13 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Grid.Row="0" Title="Snips" ShowMaximize="False" ShowMinimize="False"/>
+        <!-- Same title-inset fix as MainWindow/SnippetEditWindow — see either for why the
+             Title shorthand doesn't work. -->
+        <ui:TitleBar Grid.Row="0" ShowMaximize="False" ShowMinimize="False">
+            <ui:TitleBar.Header>
+                <TextBlock Text="Snips" FontSize="16" FontWeight="Bold" Margin="16,0,0,0" VerticalAlignment="Center"/>
+            </ui:TitleBar.Header>
+        </ui:TitleBar>
 
         <Grid Grid.Row="1" Margin="16">
             <Grid.RowDefinitions>

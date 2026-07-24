@@ -80,20 +80,39 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Search + quick add. No favorites filter button anymore — favorites pin to
-                     the top of the always-full list instead of hiding everything else, per
-                     Roland's explicit redesign (2026-07-24): "if there is no search criteria,
-                     the whole list shows [...] if there are favorites they show at the top." -->
+                <!-- Search + favorites-only filter + sort mode + quick add. Favorites still pin
+                     to the top of the full list by default (Roland's redesign, 2026-07-24) — the
+                     filter toggle below is an ADDITIONAL, separate way to see just favorites with
+                     nothing else, per his follow-up ("the filter only for favorites is still
+                     valid"). Deliberately NOT persisted to Settings this time, unlike the other
+                     checkboxes — a stuck-on persisted filter that silently hides everything is
+                     exactly the bug that prompted removing the first version of this control. -->
                 <Grid Grid.Row="0" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <ui:TextBox x:Name="SearchBox" Grid.Column="0" Padding="6,4"
                              FontSize="14" PlaceholderText="Search snippets…" ClearButtonEnabled="True"
                              TextChanged="SearchBox_TextChanged"
                              PreviewKeyDown="SearchBox_PreviewKeyDown"/>
-                    <ui:Button x:Name="NewSnippetButton" Grid.Column="1" Content="New" Appearance="Primary"
+                    <ToggleButton x:Name="FavoritesFilterToggle" Grid.Column="1" Margin="8,0,0,0"
+                                  ToolTip="Show only favorites" Checked="FavoritesFilterToggle_Changed"
+                                  Unchecked="FavoritesFilterToggle_Changed">
+                        <ui:SymbolIcon Symbol="Star24" Filled="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
+                    </ToggleButton>
+                    <!-- Only orders the non-favorite part of the list — favorites always keep
+                         their own drag order regardless of this. Persisted, unlike the toggle
+                         above: a remembered sort preference can't hide anything, so it doesn't
+                         carry the same risk. -->
+                    <ComboBox x:Name="SortModeComboBox" Grid.Column="2" Margin="8,0,0,0" Width="90"
+                              ToolTip="Sort the rest of the list" SelectionChanged="SortModeComboBox_SelectionChanged">
+                        <ComboBoxItem Content="A-Z" Tag="Name"/>
+                        <ComboBoxItem Content="Newest" Tag="Recent"/>
+                    </ComboBox>
+                    <ui:Button x:Name="NewSnippetButton" Grid.Column="3" Content="New" Appearance="Primary"
                                Margin="8,0,0,0" Click="NewSnippetButton_Click"/>
                 </Grid>
 
@@ -103,16 +122,30 @@
                      it silently does nothing. The real fix for scrollbar/content overlap has
                      to live in the row template below instead. -->
                 <!-- AllowDrop/drag handlers only do anything for a favorite row being dragged
-                     onto another favorite row (checked in code) — reordering is meaningful only
-                     within the favorites section now, there's no separate filtered view. -->
+                     onto another favorite row (checked in code) — reordering only makes sense
+                     within the favorites section, whether that's the top of the full list or the
+                     favorites-only filtered view. -->
+                <!-- ScrollViewer.HorizontalScrollBarVisibility="Disabled" overrides WPF-UI's
+                     default of "Auto" for this. Root cause finally traced with real evidence
+                     (a screenshot, not a guess): "Auto" makes the internal ScrollViewer measure
+                     row content with effectively infinite width, so TextTrimming never had
+                     anything to trim against, and NameText (which never had TextTrimming set at
+                     all, unlike DescriptionText) could push a row wider than the viewport for
+                     any long snippet name — triggering a horizontal scrollbar, which then also
+                     broke the vertical-scrollbar clearance margin below, since the row's real
+                     content no longer matched what that margin was measured against. Disabling
+                     it forces proper width-constrained measurement, which is what makes
+                     TextTrimming (added to NameText below) actually take effect. -->
                 <ListBox x:Name="ResultsList" Grid.Row="1" Margin="0,0,0,8"
                          Background="Transparent" BorderThickness="0" AllowDrop="True"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          SelectionChanged="ResultsList_SelectionChanged"
                          MouseDoubleClick="ResultsList_MouseDoubleClick"
                          KeyDown="ResultsList_KeyDown"
                          PreviewMouseRightButtonDown="ResultsList_PreviewMouseRightButtonDown"
                          PreviewMouseLeftButtonDown="ResultsList_PreviewMouseLeftButtonDown"
                          PreviewMouseMove="ResultsList_PreviewMouseMove"
+                         DragOver="ResultsList_DragOver"
                          Drop="ResultsList_Drop">
                     <ListBox.ContextMenu>
                         <ContextMenu Opened="ResultsListContextMenu_Opened">
@@ -172,7 +205,7 @@
                                                    Visibility="Collapsed"/>
                                     <StackPanel Grid.Column="1">
                                         <TextBlock x:Name="NameText" Text="{Binding Snippet.Name}" Style="{StaticResource BodyStrongTextBlockStyle}"
-                                                   Foreground="{StaticResource TextOnSurface}"/>
+                                                   Foreground="{StaticResource TextOnSurface}" TextTrimming="CharacterEllipsis"/>
                                         <TextBlock x:Name="DescriptionText" Text="{Binding Snippet.Description}" Style="{StaticResource CaptionTextBlockStyle}"
                                                    Foreground="{StaticResource TextOnSurfaceMuted}" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>

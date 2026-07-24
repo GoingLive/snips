@@ -24,7 +24,15 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Grid.Row="0" Title="Snippet" ShowMaximize="False" ShowMinimize="False"/>
+        <!-- Same fix as MainWindow's title bar: the Title shorthand renders with NO left inset
+             (confirmed from WPF-UI's TitleBar.xaml source), so it sat flush against the window
+             edge instead of aligned with the form below it. An explicit Header with its own
+             16px margin matches. -->
+        <ui:TitleBar Grid.Row="0" ShowMaximize="False" ShowMinimize="False">
+            <ui:TitleBar.Header>
+                <TextBlock Text="Snippet" FontSize="16" FontWeight="Bold" Margin="16,0,0,0" VerticalAlignment="Center"/>
+            </ui:TitleBar.Header>
+        </ui:TitleBar>
 
         <Grid Grid.Row="1" Margin="16,0,16,16">
             <Grid.ColumnDefinitions>
@@ -45,13 +53,13 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <Grid Grid.Row="0" Margin="0,0,0,4">
+                <Grid Grid.Row="0" Margin="0,0,0,2">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Name" Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                    <CheckBox Grid.Column="1" x:Name="FavoriteCheckBox" Content="Favorite"/>
+                    <TextBlock Grid.Column="0" Text="Name" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+                    <CheckBox Grid.Column="1" x:Name="FavoriteCheckBox" Content="Favorite" VerticalAlignment="Center"/>
                 </Grid>
                 <TextBox Grid.Row="1" x:Name="NameBox" Margin="0,0,0,12"/>
 
