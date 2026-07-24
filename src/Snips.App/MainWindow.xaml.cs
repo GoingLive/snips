@@ -30,6 +30,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private bool _isExiting;
     private bool _copyDefault = true;
     private bool _pasteDefault;
+    private bool _closeAfterApplyDefault;
     private string _languageCode = "en";
     private IReadOnlyDictionary<string, string>? _variableNameTranslations;
 
@@ -64,6 +65,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         // than silently discarding it.
         CopyCheckBox.IsChecked = _copyDefault;
         PasteCheckBox.IsChecked = _pasteDefault;
+        CloseAfterApplyCheckBox.IsChecked = _closeAfterApplyDefault;
         SearchBox.Focus();
     }
 
@@ -94,6 +96,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _userEmail = await _database.Settings.GetAsync("UserEmail");
         _copyDefault = await _database.Settings.GetAsync("CopyToClipboardDefault") != "0";
         _pasteDefault = await _database.Settings.GetAsync("PasteIntoActiveAppDefault") == "1";
+        _closeAfterApplyDefault = await _database.Settings.GetAsync("CloseAfterApplyDefault") == "1";
         await RefreshLanguageAsync();
         ApplyFilter();
         RefreshTrayMenu();
@@ -131,6 +134,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (_database is not null)
             _ = _database.Settings.SetAsync("PasteIntoActiveAppDefault", PasteCheckBox.IsChecked == true ? "1" : "0");
+    }
+
+    private void CloseAfterApplyCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_database is not null)
+            _ = _database.Settings.SetAsync("CloseAfterApplyDefault", CloseAfterApplyCheckBox.IsChecked == true ? "1" : "0");
     }
 
     /// <summary>
@@ -240,7 +249,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         switch (e.Key)
         {
             case Key.Enter:
-                _ = ApplySelectedAsync(keepOpen: Keyboard.Modifiers.HasFlag(ModifierKeys.Control));
+                // Roland's point: if the window is already open, the user asked to see it —
+                // closing it afterward should be something they explicitly opted into via a
+                // visible checkbox, not a hidden Ctrl+Enter modifier nobody would discover.
+                _ = ApplySelectedAsync(keepOpen: CloseAfterApplyCheckBox.IsChecked != true);
                 e.Handled = true;
                 break;
             case Key.Escape:
@@ -354,9 +366,22 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     /// <summary>Double-click opens the editor. This was briefly changed to activate-the-row
     /// instead (matching the Explorer convention), but Roland pushed back — he doesn't want the
-    /// window disappearing on a double-click, and wants a discoverable way to edit. Reverted.</summary>
+    /// window disappearing on a double-click, and wants a discoverable way to edit. Reverted.
+    /// The per-row edit icon button is the actual discoverable way now; double-click remains a
+    /// shortcut on top of it, not the only path to editing.</summary>
     private void ResultsList_MouseDoubleClick(object sender, MouseButtonEventArgs e) =>
         _ = EditSelectedAsync();
+
+    /// <summary>Edits whichever row's button was clicked, not necessarily the current selection —
+    /// clicking the icon shouldn't require selecting the row first.</summary>
+    private void EditRowButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: PickerRow row })
+        {
+            ResultsList.SelectedItem = row;
+            _ = EditSelectedAsync();
+        }
+    }
 
     /// <summary>Right-click should act on the row under the cursor, not whatever was already selected.</summary>
     private void ResultsList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
