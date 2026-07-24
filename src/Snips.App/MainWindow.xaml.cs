@@ -24,6 +24,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly SnipsDatabase _database;
     private readonly ForegroundWindowTracker _foregroundTracker;
     private readonly string _externalVariablesPath;
+    private readonly Func<Task>? _refreshHotkeysAsync;
     private List<Snippet> _allSnippets = [];
     private Dictionary<string, string> _shortcutLabelsBySnippetId = [];
     private string? _userEmail;
@@ -38,12 +39,15 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private string _languageCode = "en";
     private IReadOnlyDictionary<string, string>? _variableNameTranslations;
 
-    public MainWindow(SnipsDatabase database, ForegroundWindowTracker foregroundTracker, string externalVariablesPath)
+    public MainWindow(
+        SnipsDatabase database, ForegroundWindowTracker foregroundTracker, string externalVariablesPath,
+        Func<Task>? refreshHotkeysAsync = null)
     {
         InitializeComponent();
         _database = database;
         _foregroundTracker = foregroundTracker;
         _externalVariablesPath = externalVariablesPath;
+        _refreshHotkeysAsync = refreshHotkeysAsync;
         Title = $"Snips — {BuildIdentifier.Value}";
         BuildInfoText.Text = BuildIdentifier.Value;
         Loaded += async (_, _) => await RefreshListAsync();
@@ -793,11 +797,23 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             _database.Shortcuts, snippet.Id, existingShortcut) { Owner = this };
         var saved = dialog.ShowDialog();
 
+        // Unconditional, regardless of how the dialog closed: the embedded Assign/Clear buttons
+        // persist a shortcut change immediately (not as part of Save/Cancel/Delete), so the real
+        // WM_HOTKEY registration needs refreshing either way — otherwise a shortcut assigned from
+        // inside the editor looks saved but silently doesn't fire until the app restarts.
+        if (_refreshHotkeysAsync is not null)
+            await _refreshHotkeysAsync();
+
         if (dialog.DeleteRequested)
         {
-            // The editor already asked "Delete 'X'?" and got a yes — don't ask again.
+            // The editor already asked "Delete 'X'?" and got a yes — don't ask again. Deleting
+            // the snippet cascades to its Shortcut row (ON DELETE CASCADE), so refresh hotkeys
+            // again afterward to actually drop the now-orphaned WM_HOTKEY registration too —
+            // the refresh above only saw the shortcut as it stood before this delete.
             await _database.Snippets.DeleteAsync(snippet.Id);
             await RefreshListAsync();
+            if (_refreshHotkeysAsync is not null)
+                await _refreshHotkeysAsync();
             return;
         }
 
@@ -874,6 +890,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         await _database.Snippets.DeleteAsync(snippet.Id);
         await RefreshListAsync();
+        // Cascades to the snippet's Shortcut row (ON DELETE CASCADE) — drop the now-orphaned
+        // WM_HOTKEY registration too, same reasoning as the editor's own Delete path.
+        if (_refreshHotkeysAsync is not null)
+            await _refreshHotkeysAsync();
     }
 
     private async Task DefineShortcutForSelectedAsync()
@@ -885,7 +905,15 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var existing = await _database.Shortcuts.GetBySnippetIdAsync(snippet.Id);
         var dialog = new ShortcutCaptureWindow(snippet.Name, snippet.Id, _database.Shortcuts, existing) { Owner = this };
         if (dialog.ShowDialog() == true)
+        {
             await RefreshListAsync();
+            // The dialog only persisted the change to the database — without this, the actual
+            // system-wide WM_HOTKEY registration stays whatever it was at app startup, so the
+            // new/cleared shortcut would look saved (row shows it, or doesn't) but silently not
+            // take effect until the app was next restarted.
+            if (_refreshHotkeysAsync is not null)
+                await _refreshHotkeysAsync();
+        }
     }
 
     private void NewMenuItem_Click(object sender, RoutedEventArgs e) => _ = NewSnippetAsync();

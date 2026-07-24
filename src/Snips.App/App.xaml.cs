@@ -38,6 +38,11 @@ public partial class App : Application
     private Mutex? _singleInstanceMutex;
     private EventWaitHandle? _showRequestEvent;
 
+    // Registration ids for the CURRENT set of per-snippet hotkeys, so a later re-registration
+    // (see RegisterPerSnippetHotkeysAsync) can cleanly unregister the old set before adding the
+    // new one, rather than leaking stale WM_HOTKEY registrations behind a since-changed shortcut.
+    private readonly List<int> _perSnippetHotkeyIds = [];
+
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -91,7 +96,7 @@ public partial class App : Application
         _foregroundTracker = new ForegroundWindowTracker();
 
         var externalVariablesPath = DatabasePathResolver.ResolveExternalVariablesPath(dbPath);
-        _mainWindow = new MainWindow(_database, _foregroundTracker, externalVariablesPath);
+        _mainWindow = new MainWindow(_database, _foregroundTracker, externalVariablesPath, RegisterPerSnippetHotkeysAsync);
         _hotKeyManager = new HotKeyManager(_mainWindow);
 
         var boundLabel = RegisterFirstAvailableHotkey();
@@ -144,10 +149,21 @@ public partial class App : Application
     /// directly, without opening the picker. Failures here (combo claimed by something else)
     /// are reported once as a batch rather than crashing startup — the app remains fully usable
     /// via the picker either way. A per-shortcut "⚠ inactive, retry on focus" indicator in the
-    /// list (as SPEC.md §5.8 describes) is not built yet; this only surfaces failures at startup.
+    /// list (as SPEC.md §5.8 describes) is not built yet; this only surfaces failures here.
+    ///
+    /// Also passed into MainWindow as a callback and re-run any time a shortcut is assigned or
+    /// cleared from the UI (the editor's Assign/Clear, or the list's "Define a shortcut…") — a
+    /// per-snippet hotkey previously only got its real WM_HOTKEY registration at app startup, so
+    /// a shortcut assigned during a running session looked saved (it was, in the database) but
+    /// silently never actually fired until the app was next restarted. Unregistering the
+    /// previous set first avoids leaking a stale registration behind a since-changed shortcut.
     /// </summary>
     private async Task RegisterPerSnippetHotkeysAsync()
     {
+        foreach (var id in _perSnippetHotkeyIds)
+            _hotKeyManager!.Unregister(id);
+        _perSnippetHotkeyIds.Clear();
+
         var shortcuts = await _database!.Shortcuts.ListAllAsync();
         var failedSnippetNames = new List<string>();
 
@@ -162,6 +178,10 @@ public partial class App : Application
             {
                 var snippet = await _database.Snippets.GetByIdAsync(snippetId);
                 failedSnippetNames.Add(snippet?.Name ?? snippetId);
+            }
+            else
+            {
+                _perSnippetHotkeyIds.Add(id.Value);
             }
         }
 
