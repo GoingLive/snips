@@ -92,34 +92,24 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     /// <summary>
     /// Triggered directly by a per-snippet hotkey (SPEC.md §5.8) — no picker window needs to be
     /// open for this at all, and in the common case (fired from another app while Snips sits
-    /// minimised in the tray) none is. Always copies and pastes: the whole point of a per-snippet
-    /// shortcut is to act immediately, without requiring the picker.
+    /// minimised in the tray) none is.
     ///
-    /// Roland's report: firing a hotkey while the picker HAPPENED to be open in the background
-    /// made it vanish even with "Close this window after applying" unchecked. Root cause —
-    /// ApplySnippetAsync unconditionally Hide()s if IsVisible (needed so the paste target can
-    /// actually receive foreground), but unlike ApplySelectedAsync's Enter-key path, nothing
-    /// here ever restored it afterward; the checkbox was never even read. It's not "no open UI
-    /// to read from" as the old comment here claimed — the checkbox is a live property on this
-    /// same window regardless of whether it happens to be visible right now.
+    /// Copies to the clipboard only — deliberately never attempts the auto-paste (synthetic
+    /// Ctrl+V into whatever app was previously foreground) that the picker's own "Paste into
+    /// active app" checkbox offers. Roland's call, after two real problems specific to this
+    /// path: (1) auto-paste has to Hide() this window to hand the target foreground, which is
+    /// fine for the picker's Enter key (only ever pressed while Snips is already the visible,
+    /// focused window) but not for a global hotkey that can fire from literally any app, at any
+    /// time, with no reliable way to know whether hiding is even wanted; (2) the synthetic
+    /// Ctrl+V it would send collides with AltGr on many non-US keyboard layouts (see
+    /// HotkeyValidator.IsLikelyAltGrCollision). Copy + a manual Ctrl+V sidesteps both, at the
+    /// cost of one extra keystroke from the user.
     /// </summary>
     public async void ApplySnippetByHotkey(string snippetId)
     {
         var snippet = await _database.Snippets.GetByIdAsync(snippetId);
-        if (snippet is null)
-            return;
-
-        var wasVisible = IsVisible;
-        var applied = await ApplySnippetAsync(snippet, copy: true, paste: true, statusTarget: null);
-
-        // Only restore visibility if the picker was actually open before this fired — the common
-        // "invisible from another app" case correctly leaves nothing to restore — and only when
-        // the user hasn't opted into auto-close via the checkbox, same convention as Enter's.
-        if (applied && wasVisible && !IsVisible && CloseAfterApplyCheckBox.IsChecked != true)
-        {
-            Show();
-            Activate();
-        }
+        if (snippet is not null)
+            await ApplySnippetAsync(snippet, copy: true, paste: false, statusTarget: null);
     }
 
     private async Task RefreshListAsync()
